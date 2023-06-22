@@ -1,6 +1,3 @@
-"""
-  outputdata agent function for Boid agents, which outputs publicly visible properties to a message list
-"""
 outputdata = r"""
 FLAMEGPU_AGENT_FUNCTION(outputdata, flamegpu::MessageNone, flamegpu::MessageSpatial3D) {
     // Output each agents publicly visible properties.
@@ -14,9 +11,7 @@ FLAMEGPU_AGENT_FUNCTION(outputdata, flamegpu::MessageNone, flamegpu::MessageSpat
     return flamegpu::ALIVE;
 }
 """
-"""
-  inputdata agent function for Boid agents, which reads data from neighbouring Boid agents, to perform the boid flocking model.
-"""
+
 inputdata = r"""
 // Vector utility functions, see top of file for versions with commentary
 
