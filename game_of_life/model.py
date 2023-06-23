@@ -59,7 +59,7 @@ def initialise_simulation(seed):
 #   设置可视化
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
-        visualisation.setBeginPaused(True)
+#        visualisation.setBeginPaused(True)
 #   设置相机所在位置和速度
         visualisation.setSimulationSpeed(5)
         visualisation.setInitialCameraLocation(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 450.0)
@@ -82,7 +82,6 @@ def initialise_simulation(seed):
     cudaSimulation.initialise(sys.argv)
 
 
-
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
@@ -95,17 +94,19 @@ def initialise_simulation(seed):
                 instance.setVariableArrayUInt("pos", [x, y])
                 is_alive= 1 if random.random() < 0.4 else 0
                 instance.setVariableUInt("is_alive", is_alive)
-                if pyflamegpu.VISUALISATION:
+                instance.setVariableFloat("x", x)
+                instance.setVariableFloat("y", y)
+#                if pyflamegpu.VISUALISATION:
         # Agent position in space
-                    instance.setVariableFloat("x", x)
-                    instance.setVariableFloat("y", y)
+#                    instance.setVariableFloat("x", x)
+#                    instance.setVariableFloat("y", y)
         cudaSimulation.setPopulationData(init_pop)
 
     if pyflamegpu.VISUALISATION:
         visualisation.join()
 
 # Ensure profiling / memcheck work correctly
-    pyflamegpu.cleanup()
+#    pyflamegpu.cleanup()
 
 if __name__ == "__main__":
     start=time.time()
