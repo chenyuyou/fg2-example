@@ -8,7 +8,7 @@ FLAMEGPU_AGENT_FUNCTION(output_message, flamegpu::MessageNone, flamegpu::Message
 }
 """
 
-# Agent Function to read the location messages and decide how the agent should move
+# agent函数读取位置消息并决定agent应该如何移动
 input_message = r"""
 FLAMEGPU_AGENT_FUNCTION(input_message, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     const flamegpu::id_t ID = FLAMEGPU->getID();
