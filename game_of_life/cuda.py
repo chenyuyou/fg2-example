@@ -1,14 +1,13 @@
-
-outputdata = r"""
-FLAMEGPU_AGENT_FUNCTION(outputdata, flamegpu::MessageNone, flamegpu::MessageArray2D) {
+output=r'''
+FLAMEGPU_AGENT_FUNCTION(output, flamegpu::MessageNone, flamegpu::MessageArray2D) {
     FLAMEGPU->message_out.setVariable<char>("is_alive", FLAMEGPU->getVariable<unsigned int>("is_alive"));
     FLAMEGPU->message_out.setIndex(FLAMEGPU->getVariable<unsigned int, 2>("pos", 0), FLAMEGPU->getVariable<unsigned int, 2>("pos", 1));
     return flamegpu::ALIVE;
 }
-"""
+'''
 
-updatedata = r"""
-FLAMEGPU_AGENT_FUNCTION(updatedata, flamegpu::MessageArray2D, flamegpu::MessageNone) {
+update=r'''
+FLAMEGPU_AGENT_FUNCTION(update, flamegpu::MessageArray2D, flamegpu::MessageNone) {
     const unsigned int my_x = FLAMEGPU->getVariable<unsigned int, 2>("pos", 0);
     const unsigned int my_y = FLAMEGPU->getVariable<unsigned int, 2>("pos", 1);
 
@@ -33,4 +32,4 @@ FLAMEGPU_AGENT_FUNCTION(updatedata, flamegpu::MessageArray2D, flamegpu::MessageN
     FLAMEGPU->setVariable<unsigned int>("is_alive", is_alive);
     return flamegpu::ALIVE;
 }
-"""
+'''
