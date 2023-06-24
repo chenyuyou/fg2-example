@@ -1,6 +1,6 @@
 更新：
 2023年6月23日
-添加并验证了circles_spatial2D，circles_spatial3D两个模型的python and c++ 版本。
+添加并验证了circles_spatial2D，circles_spatial3D两个模型的python+cuda 版本。
 
 ## 目的
 测试FlameGPU2框架三种不同情况下的速度。
