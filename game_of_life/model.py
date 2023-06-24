@@ -12,8 +12,8 @@ def create_model():
 def define_environment(model):
 #   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
-    env.newPropertyUInt("SQRT_AGENT_COUNT", 1000)
-    env.newPropertyUInt("AGENT_COUNT", int(env.getPropertyUInt("SQRT_AGENT_COUNT")**2))  
+    env.newPropertyUInt("SQRT_AGENT_COUNT", 100)
+    env.newPropertyUInt("AGENT_COUNT", int(env.getPropertyUInt("SQRT_AGENT_COUNT")*env.getPropertyUInt("SQRT_AGENT_COUNT")))  
     env.newPropertyFloat("repulse", 0.05)
     env.newPropertyFloat("radius", 1.0)
     return env
@@ -27,10 +27,11 @@ def define_messages(model, env):
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
     agent = model.newAgent("cell")
-    agent.newVariableArrayUInt("pos", 2)
+    agent.newVariableArrayUInt("pos",2)
     agent.newVariableUInt("is_alive")
-    agent.newVariableFloat("x")
-    agent.newVariableFloat("y")
+    if pyflamegpu.VISUALISATION:
+        agent.newVariableFloat("x")
+        agent.newVariableFloat("y")
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
     out_fn = agent.newRTCFunction("output", output)
     out_fn.setMessageOutput("is_alive_message")
@@ -52,14 +53,12 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-#   设置随机参数
-    if seed is not None:
-        cudaSimulation.SimulationConfig().random_seed = seed
-        cudaSimulation.applyConfig()
+    cudaSimulation.initialise(sys.argv) # 按照提示符参数运行
+
 #   设置可视化
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
-#        visualisation.setBeginPaused(True)
+        visualisation.setBeginPaused(True)
 #   设置相机所在位置和速度
         visualisation.setSimulationSpeed(5)
         visualisation.setInitialCameraLocation(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 450.0)
@@ -79,7 +78,6 @@ def initialise_simulation(seed):
         agt.setColor(cell_colors)
 #   打开可视化窗口
         visualisation.activate()
-    cudaSimulation.initialise(sys.argv)
 
 
 #   如果未提供 xml 模型文件，则生成一个填充。
@@ -91,22 +89,29 @@ def initialise_simulation(seed):
             for y in range(env.getPropertyUInt("SQRT_AGENT_COUNT")):
                 init_pop.push_back()
                 instance = init_pop.back()
-                instance.setVariableArrayUInt("pos", [x, y])
-                is_alive= 1 if random.random() < 0.4 else 0
+                instance.setVariableArrayUInt("pos", (x, y))
+                is_alive = 1 if random.uniform(0.0,1.0) < 0.4 else 0
                 instance.setVariableUInt("is_alive", is_alive)
-                instance.setVariableFloat("x", x)
-                instance.setVariableFloat("y", y)
-#                if pyflamegpu.VISUALISATION:
+#                instance.setVariableFloat("x", x)
+#                instance.setVariableFloat("y", y)
+                if pyflamegpu.VISUALISATION:
         # Agent position in space
-#                    instance.setVariableFloat("x", x)
-#                    instance.setVariableFloat("y", y)
+                    instance.setVariableFloat("x", x)
+                    instance.setVariableFloat("y", y)
         cudaSimulation.setPopulationData(init_pop)
+
+
+    cudaSimulation.simulate()
+
+
+
+
 
     if pyflamegpu.VISUALISATION:
         visualisation.join()
 
 # Ensure profiling / memcheck work correctly
-#    pyflamegpu.cleanup()
+    pyflamegpu.cleanup()
 
 if __name__ == "__main__":
     start=time.time()

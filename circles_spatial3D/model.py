@@ -4,10 +4,6 @@ from numpy import cbrt, floor
 import random, time, math, sys
 from cuda import *
 
-
-
-
-
 def create_model():
     model = pyflamegpu.ModelDescription("Circles Spatial3D")
     return model
@@ -63,40 +59,20 @@ def initialise_simulation(seed):
     define_execution_order(model)
 
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-
-    if seed is not None:
-        cudaSimulation.SimulationConfig().random_seed = seed
-        cudaSimulation.applyConfig()
+    cudaSimulation.initialise(sys.argv)
 
     if pyflamegpu.VISUALISATION:
         m_vis = cudaSimulation.getVisualisation()
     
         INIT_CAM = env.getPropertyFloat("ENV_MAX") * 1.25
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM)
-        m_vis.setCameraSpeed(0.001)
+        m_vis.setCameraSpeed(0.01)
+        m_vis.setSimulationSpeed(25)
         circ_agt = m_vis.addAgent("Circle")
-    # Position vars are named x, y, z; so they are used by default
         circ_agt.setModel(pyflamegpu.ICOSPHERE)
         circ_agt.setModelScale(1/10.0)
-        ENV_MIN = 0
-        DIM = int(math.ceil((env.getPropertyFloat("ENV_MAX") - ENV_MIN) / env.getPropertyFloat("RADIUS")))
-        DIM_MAX = DIM * env.getPropertyFloat("RADIUS")
-        pen = m_vis.newLineSketch(1, 1, 1, 0.2)
-        for y in range(DIM+1):
-            for z in range(DIM+1):
-                pen.addVertex(ENV_MIN, y * env.getPropertyFloat("RADIUS"), z *  env.getPropertyFloat("RADIUS"))
-                pen.addVertex(DIM_MAX, y * env.getPropertyFloat("RADIUS"), z * env.getPropertyFloat("RADIUS"))
-        for x in range(DIM+1):
-            for z in range(DIM+1):
-                pen.addVertex(x * env.getPropertyFloat("RADIUS"), ENV_MIN, z * env.getPropertyFloat("RADIUS"))
-                pen.addVertex(x * env.getPropertyFloat("RADIUS"), DIM_MAX, z * env.getPropertyFloat("RADIUS"))
-        for x in range(DIM+1):
-            for y in range(DIM+1):
-                pen.addVertex(x * env.getPropertyFloat("RADIUS"), y * env.getPropertyFloat("RADIUS"), ENV_MIN)
-                pen.addVertex(x * env.getPropertyFloat("RADIUS"), y * env.getPropertyFloat("RADIUS"), DIM_MAX)    
         m_vis.activate()
-    cudaSimulation.initialise(sys.argv)
-
+    
 # If no xml model file was is provided, generate a population.
     if not cudaSimulation.SimulationConfig().input_file:
     # Uniformly distribute agents within space, with uniformly distributed initial velocity.
@@ -104,11 +80,9 @@ def initialise_simulation(seed):
         population = pyflamegpu.AgentVector(model.Agent("Circle"), env.getPropertyUInt("AGENT_COUNT"))
         for i in range(env.getPropertyUInt("AGENT_COUNT")):
             instance = population[i]
-
             instance.setVariableFloat("x",  random.uniform(0.0, env.getPropertyFloat("ENV_MAX")))
             instance.setVariableFloat("y",  random.uniform(0.0, env.getPropertyFloat("ENV_MAX")))
             instance.setVariableFloat("z",  random.uniform(0.0, env.getPropertyFloat("ENV_MAX")))
-
         cudaSimulation.setPopulationData(population)
 
     cudaSimulation.simulate()
@@ -118,23 +92,9 @@ def initialise_simulation(seed):
     if pyflamegpu.VISUALISATION:
         m_vis.join()
 
-# Ensure profiling / memcheck work correctly
-
 if __name__ == "__main__":
     start=time.time()
     initialise_simulation(64)
     end=time.time()
     print(end-start)
     exit()
-
-class create_agents(pyflamegpu.HostFunction):
-    def run(self, FLAMEGPU):
-        # Fetch the desired agent count and environment width
-        AGENT_COUNT = FLAMEGPU.environment.getPropertyUInt("AGENT_COUNT")
-        ENV_WIDTH = FLAMEGPU.environment.getPropertyFloat("ENV_WIDTH")
-        # Create agents
-        t_pop = FLAMEGPU.agent("point")
-        for i in range(AGENT_COUNT):
-            t = t_pop.newAgent()
-            t.setVariableFloat("x", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
-            t.setVariableFloat("y", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
