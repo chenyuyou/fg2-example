@@ -25,11 +25,13 @@ FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Mult(float &x, float &y, float &z, const 
     y *= multiplier;
     z *= multiplier;
 }
+
 FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Div(float &x, float &y, float &z, const float divisor) {
     x /= divisor;
     y /= divisor;
     z /= divisor;
 }
+
 FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Normalize(float &x, float &y, float &z) {
     // Get the length
     float length = vec3Length(x, y, z);
@@ -117,7 +119,7 @@ FLAMEGPU_AGENT_FUNCTION(inputdata, flamegpu::MessageSpatial3D, flamegpu::Message
         perceived_centre_z /= perceived_count;
         global_velocity_x /= perceived_count;
         global_velocity_y /= perceived_count;
-        global_velocity_z /= perceived_count;       
+        global_velocity_z /= perceived_count;     
 
         // Rule 1) Steer towards perceived centre of flock (Cohesion)
         float steer_velocity_x = 0.f;
@@ -180,11 +182,11 @@ FLAMEGPU_AGENT_FUNCTION(inputdata, flamegpu::MessageSpatial3D, flamegpu::Message
         agent_fz *= minSpeed;
     }
 
-    const float TIME_SCALE = FLAMEGPU->environment.getProperty<float>("TIME_SCALE");    
+    // Apply the velocity
+    const float TIME_SCALE = FLAMEGPU->environment.getProperty<float>("TIME_SCALE");
     agent_x += agent_fx * TIME_SCALE;
     agent_y += agent_fy * TIME_SCALE;
-    agent_z += agent_fz * TIME_SCALE;    
-    
+    agent_z += agent_fz * TIME_SCALE;
 
     // Steer away from walls - Computed post normalization to ensure good avoidance. Prevents constant term getting swamped
 

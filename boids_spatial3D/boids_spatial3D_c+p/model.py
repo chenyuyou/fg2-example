@@ -2,18 +2,35 @@
 from pyflamegpu import *
 import sys, random, time
 from cuda import *
-from func import *
+import math
 
-def create_model():
-    model = pyflamegpu.ModelDescription("Boids Spatial3D")
-    return model
+def vec3Length(x, y, z):
+    return math.sqrt(x * x + y * y + z * z)
 
-def define_environment(model):
-    """
-        Environment
-    """
+
+def vec3Mult(x, y, z, multiplier):
+    x *= multiplier
+    y *= multiplier
+    z *= multiplier
+
+
+def vec3Div(x, y, z, divisor):
+    x /= divisor
+    y /= divisor
+    z /= divisor
+
+def vec3Normalize(x, y, z):
+    # Get the length
+    length = vec3Length(x, y, z)
+    vec3Div(x, y, z, length)
+
+
+def main():
+    model = pyflamegpu.ModelDescription("Boids Spatial3D (RTC)")
+
+
     env = model.Environment()
-# Population size to generate, if no agents are loaded from disk    
+# Population size to generate, if no agents are loaded from disk
     env.newPropertyUInt("POPULATION_TO_GENERATE", 40000)
 
 # Environment Bounds
@@ -37,26 +54,23 @@ def define_environment(model):
     env.newPropertyFloat("COLLISION_SCALE", 10.0)
     env.newPropertyFloat("MATCH_SCALE", 0.015)
 
-    return env
 
-def define_messages(model, env):
-  
     message = model.newMessageSpatial3D("location")
-    # Set the range and bounds.
+# Set the range and bounds.
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
     message.setMax(env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"))
 # A message to hold the location of an agent.
     message.newVariableID("id")
 # X Y Z are implicit.
-#    message.newVariableFloat("x")
-#    message.newVariableFloat("y")
-#    message.newVariableFloat("z")
+# message.newVariable<float>("x");
+# message.newVariable<float>("y");
+# message.newVariable<float>("z");
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
     message.newVariableFloat("fz")
+    
 
-def define_agents(model):
     agent = model.newAgent("Boid")
     agent.newVariableFloat("x")
     agent.newVariableFloat("y")
@@ -64,31 +78,17 @@ def define_agents(model):
     agent.newVariableFloat("fx")
     agent.newVariableFloat("fy")
     agent.newVariableFloat("fz")
-    fn = agent.newRTCFunction("outputdata", outputdata)
-    fn.setMessageOutput("location")
-    fn = agent.newRTCFunction("inputdata", inputdata)
-    fn.setMessageInput("location")
+    agent.newRTCFunction("outputdata", outputdata).setMessageOutput("location")
+    agent.newRTCFunction("inputdata", inputdata).setMessageInput("location")
 
 
-def define_execution_order(model):
 # Layer #1
-    layer = model.newLayer()
-    layer.addAgentFunction("Boid", "outputdata")
+    model.newLayer().addAgentFunction("Boid", "outputdata")
 # Layer #2
-    layer = model.newLayer()
-    layer.addAgentFunction("Boid", "inputdata")
-
-
-def initialise_simulation(seed):
-    model = create_model()
-    env = define_environment(model)
-    define_messages(model, env)
-    define_agents(model)
-    define_execution_order(model)
+    model.newLayer().addAgentFunction("Boid", "inputdata")
 
     cudaSimulation = pyflamegpu.CUDASimulation(model)
     cudaSimulation.initialise(sys.argv)
- 
 
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
@@ -118,6 +118,9 @@ def initialise_simulation(seed):
         ui.newEnvironmentPropertyDragFloat("COLLISION_SCALE", 0.0, 10.0, 0.001)
         ui.newEnvironmentPropertyDragFloat("MATCH_SCALE", 0.0, 10.0, 0.001)
         visualisation.activate()
+
+
+
 
 
 # If no xml model file was is provided, generate a population.
@@ -164,10 +167,11 @@ def initialise_simulation(seed):
         visualisation.join()
 
 # Ensure profiling / memcheck work correctly
+    pyflamegpu.cleanup()
 
 if __name__ == "__main__":
     start=time.time()
-    initialise_simulation(64)
+    main()
     end=time.time()
     print(end-start)
     exit()
