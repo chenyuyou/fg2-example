@@ -51,7 +51,7 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-    cudaSimulation.initialise(sys.argv)
+
 
 #   设置可视化
     if pyflamegpu.VISUALISATION:
@@ -76,6 +76,7 @@ def initialise_simulation(seed):
         pen.addVertex(0, 0, 0)
 #   打开可视化窗口
         m_vis.activate()
+    cudaSimulation.initialise(sys.argv) 
     
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:

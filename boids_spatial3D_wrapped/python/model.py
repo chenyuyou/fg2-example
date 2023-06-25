@@ -2,55 +2,34 @@
 from textwrap import indent
 from pyflamegpu import *
 import pyflamegpu.codegen
-import sys, random, math, time
+import sys, random, math, pathlib, time
 
 def vec3Mult(x, y, z, multiplier):
-    """
-      Multiply a vector by a scalar value in-place
-      @param x x component of the vector
-      @param y y component of the vector
-      @param z z component of the vector
-      @param multiplier scalar value to multiply by
-    """
     x *= multiplier
     y *= multiplier
     z *= multiplier
     
 def vec3Div(x, y, z, divisor):
-    """
-      Divide a vector by a scalar value in-place
-      @param x x component of the vector
-      @param y y component of the vector
-      @param z z component of the vector
-      @param divisor scalar value to divide by
-    """
     x /= divisor
     y /= divisor
     z /= divisor
 
 def vec3Normalize(x, y, z):
-    """
-      Normalize a 3 component vector in-place
-      @param x x component of the vector
-      @param y y component of the vector
-      @param z z component of the vector
-    """
-    # Get the length (dont call the device vec3Length func)
     length = math.sqrt(x * x + y * y + z * z)
     vec3Div(x, y, z, length)
 
-# pyflamegpu agent and device functions
 @pyflamegpu.device_function
 def vec3Length(x: float, y: float, z: float) -> float :
-    return math.sqrt(x * x + y * y + z * z)
+    return math.sqrtf(x * x + y * y + z * z)
 
+@pyflamegpu.device_function
+def clamp(v : float, min: float, max: float) -> float:
+    v = min if v < min else v
+    v = max if v > max else v
+    return v
 
 @pyflamegpu.agent_function
 def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.MessageSpatial3D):
-    """
-    Pure python version of output agent function for Boid agents, which outputs a spatial message
-    """
-    # Output each agents publicly visible properties.
     message_out.setVariableInt("id", pyflamegpu.getID())
     message_out.setVariableFloat("x", pyflamegpu.getVariableFloat("x"))
     message_out.setVariableFloat("y", pyflamegpu.getVariableFloat("y"))
@@ -62,10 +41,6 @@ def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.Messa
 
 @pyflamegpu.agent_function
 def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.MessageNone):
-    """
-    Pure python version of inputdata agent function for Boid agents, which reads data from neighboring Boid agents, to perform the boid flocking model.
-    """
-    # Agent properties in local register
     id = pyflamegpu.getID()
     # Agent position
     agent_x = pyflamegpu.getVariableFloat("x")
@@ -99,12 +74,9 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
         # Ignore self messages.
         if message.getVariableInt("id") != id :
             # Get the message location and velocity.
-#            message_x = message.getVirtualX()
-#            message_y = message.getVirtualY()
-#            message_z = message.getVirtualZ()
-            message_x = message.getVariableFloat("x")
-            message_y = message.getVariableFloat("y")
-            message_z = message.getVariableFloat("z")
+            message_x = message.getVirtualX()
+            message_y = message.getVirtualY()
+            message_z = message.getVirtualZ()
 
             # Check interaction radius
             separation = vec3Length(agent_x - message_x, agent_y - message_y, agent_z - message_z)
@@ -135,7 +107,6 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
                     velocity_change_x += collisionScale * (agent_x - message_x) * invSqSep
                     velocity_change_y += collisionScale * (agent_y - message_y) * invSqSep
                     velocity_change_z += collisionScale * (agent_z - message_z) * invSqSep
-
 
     if (perceived_count) :
         # Divide positions/velocities by relevant counts.
@@ -233,7 +204,10 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     if (agent_z > maxPosition) :
         agent_z -= width
 
-    
+    # Update wing speed and animation position
+    agent_fscale = vec3Length(agent_fx, agent_fy, agent_fz)
+    wing_position = pyflamegpu.getVariableFloat("wing_position") + agent_fscale*GLOBAL_SCALE
+
     # Update global agent memory.
     pyflamegpu.setVariableFloat("x", agent_x)
     pyflamegpu.setVariableFloat("y", agent_y)
@@ -243,19 +217,19 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     pyflamegpu.setVariableFloat("fy", agent_fy)
     pyflamegpu.setVariableFloat("fz", agent_fz)
 
-
+    pyflamegpu.setVariableFloat("wing_position", wing_position)
+    pyflamegpu.setVariableFloat("wing_animation", math.sinf(wing_position))
 
     return pyflamegpu.ALIVE
 
-def main():
-
+def create_model():
+#   创建模型，并且起名
     model = pyflamegpu.ModelDescription("Boids_BruteForce")
+    return model
 
-
-# GLOBALS
-
+def define_environment(model):
+#   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
-# Population size to generate, if no agents are loaded from disk, number may need to be reduced for debug builds or small GPUs. Alternatively top end GPUs can handle much larger values.
     env.newPropertyUInt("POPULATION_TO_GENERATE", 40000)
 
 # Environment Bounds
@@ -271,15 +245,16 @@ def main():
     env.newPropertyFloat("SEPARATION_RADIUS", 0.01)
 
 # Global Scalers
-    env.newPropertyFloat("TIME_SCALE", 0.0005)
-    env.newPropertyFloat("GLOBAL_SCALE", 0.15)
+    env.newPropertyFloat("TIME_SCALE", 0.001)
+    env.newPropertyFloat("GLOBAL_SCALE", 0.25)
 
 # Rule scalers
     env.newPropertyFloat("STEER_SCALE", 0.055)
     env.newPropertyFloat("COLLISION_SCALE", 10.0)
     env.newPropertyFloat("MATCH_SCALE", 0.015)
+    return env
 
-
+def define_messages(model, env):
 # Location message
     message = model.newMessageSpatial3D("location")
 # Set the range and bounds.
@@ -295,8 +270,8 @@ def main():
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
     message.newVariableFloat("fz")
-    
 
+def define_agents(model):
 # Boid agent
     agent = model.newAgent("Boid")
     agent.newVariableFloat("x")
@@ -305,31 +280,35 @@ def main():
     agent.newVariableFloat("fx")
     agent.newVariableFloat("fy")
     agent.newVariableFloat("fz")
+    agent.newVariableFloat("wing_position")
+    agent.newVariableFloat("wing_animation")
     outputdata_translated = pyflamegpu.codegen.translate(outputdata)
     inputdata_translated = pyflamegpu.codegen.translate(inputdata)
     agent.newRTCFunction("outputdata", outputdata_translated).setMessageOutput("location")
     agent.newRTCFunction("inputdata", inputdata_translated).setMessageInput("location")
 
-
-# Control flow
-    
+def define_execution_order(model):
 # Layer #1
     model.newLayer().addAgentFunction("Boid", "outputdata")
 # Layer #2
     model.newLayer().addAgentFunction("Boid", "inputdata")
 
-# Create Model Runner
+def initialise_simulation(seed):
+    model = create_model()
+    env = define_environment(model)
+    define_messages(model, env)
+    define_agents(model)
+    define_execution_order(model)
+#   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-
-# Create Visualisation
 
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
-    # Configure vis
+# Configure vis
 #    visualisation.setClearColor(255, 255, 255)
         envWidth = env.getPropertyFloat("MAX_POSITION") - env.getPropertyFloat("MIN_POSITION")
-        INIT_CAM = env.getPropertyFloat("MAX_POSITION") * 1.25
-        visualisation.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM)
+        INIT_CAM = env.getPropertyFloat("MAX_POSITION") * 3.0
+        visualisation.setInitialCameraLocation(0, 0, INIT_CAM)
         visualisation.setCameraSpeed(0.001 * envWidth)
         visualisation.setViewClips(0.00001, 50)
         boid_agt = visualisation.addAgent("Boid")
@@ -338,28 +317,25 @@ def main():
         boid_agt.setForwardYVariable("fy")
         boid_agt.setForwardZVariable("fz")
     #boid_agt.setModel(pyflamegpu.ARROWHEAD) # Alternative simple 3D model for very large pop sizes
-        boid_agt.setModel(pyflamegpu.STUNTPLANE)
-        boid_agt.setModelScale(env.getPropertyFloat("SEPARATION_RADIUS") /3.0)
-#    boid_agt.setColor(pyflamegpu.RED)
+        script_dir = pathlib.Path(__file__).parent.resolve()
+        bird_a = str(script_dir / "model/bird_a.obj")
+        bird_b = str(script_dir / "model/bird_b.obj")
+        boid_agt.setKeyFrameModel(bird_a, bird_b, "wing_animation")
+        boid_agt.setModelScale(env.getPropertyFloat("SEPARATION_RADIUS") /2.0)
+#    boid_agt.setColor(pyflamegpu.RED);
     # Visualisation UI
-        ui = visualisation.newUIPanel("Environment")
-        ui.newStaticLabel("Interaction")
-        ui.newEnvironmentPropertyDragFloat("INTERACTION_RADIUS", 0.0, 0.05, 0.001)
-        ui.newEnvironmentPropertyDragFloat("SEPARATION_RADIUS", 0.0, 0.05, 0.001)
-        ui.newStaticLabel("Environment Scalars")
-        ui.newEnvironmentPropertyDragFloat("TIME_SCALE", 0.0, 1.0, 0.0001)
-        ui.newEnvironmentPropertyDragFloat("GLOBAL_SCALE", 0.0, 0.5, 0.001)
-        ui.newStaticLabel("Force Scalars")
-        ui.newEnvironmentPropertyDragFloat("STEER_SCALE", 0.0, 10.0, 0.001)
-        ui.newEnvironmentPropertyDragFloat("COLLISION_SCALE", 0.0, 10.0, 0.001)
-        ui.newEnvironmentPropertyDragFloat("MATCH_SCALE", 0.0, 10.0, 0.001)
+        ui = visualisation.newUIPanel("Settings")
+        ui.newSection("Model Parameters")
+        ui.newEnvironmentPropertySliderFloat("TIME_SCALE", 0.00001, 0.01)
+        ui.newEnvironmentPropertySliderFloat("GLOBAL_SCALE", 0.05, 0.5)
+        ui.newEnvironmentPropertySliderFloat("SEPARATION_RADIUS", 0.01, env.getPropertyFloat("INTERACTION_RADIUS"))
+        ui.newEnvironmentPropertySliderFloat("STEER_SCALE", 0.00, 1.0)
+        ui.newEnvironmentPropertySliderFloat("COLLISION_SCALE", 0.00, 100.0)
+        ui.newEnvironmentPropertySliderFloat("MATCH_SCALE", 0.00, 0.10)
         visualisation.activate()
-
-# Initialise Model
 
     cudaSimulation.initialise(sys.argv)
 
-# If no xml model file was is provided, generate a population.
     if not cudaSimulation.SimulationConfig().input_file:
     # Uniformly distribute agents within space, with uniformly distributed initial velocity.
         random.seed(cudaSimulation.SimulationConfig().random_seed)
@@ -392,10 +368,13 @@ def main():
             instance.setVariableFloat("fy", fy)
             instance.setVariableFloat("fz", fz)
 
-        cudaSimulation.setPopulationData(population)
+        # initialise wing speed
+            instance.setVariableFloat("wing_position", random.uniform(0, 3.14))
+            instance.setVariableFloat("wing_animation", 0)
 
-# Execution
-    cudaSimulation.simulate()
+        cudaSimulation.setPopulationData(population)
+    # Execution
+        cudaSimulation.simulate()
 
 # Export Pop (optional)
 # cudaSimulation.exportData("end.xml")
@@ -408,6 +387,7 @@ def main():
 
 if __name__ == "__main__":
     start=time.time()
-    main()
+    initialise_simulation(64)
     end=time.time()
     print(end-start)
+    exit()
