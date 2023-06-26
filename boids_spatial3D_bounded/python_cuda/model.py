@@ -50,7 +50,7 @@ def define_environment(model):
 #   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
 # Population size to generate, if no agents are loaded from disk    
-    env.newPropertyUInt("POPULATION_TO_GENERATE", 40000)
+    env.newPropertyUInt("POPULATION_TO_GENERATE", 4000)
 # Environment Bounds
     env.newPropertyFloat("MIN_POSITION", -0.5)
     env.newPropertyFloat("MAX_POSITION", +0.5)
@@ -93,10 +93,8 @@ def define_agents(model):
     agent.newVariableFloat("fx")
     agent.newVariableFloat("fy")
     agent.newVariableFloat("fz")
-    fn = agent.newRTCFunction("outputdata", outputdata)
-    fn.setMessageOutput("location")
-    fn = agent.newRTCFunction("inputdata", inputdata)
-    fn.setMessageInput("location")
+    agent.newRTCFunction("outputdata", outputdata).setMessageOutput("location")
+    agent.newRTCFunction("inputdata", inputdata).setMessageInput("location")
 
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
