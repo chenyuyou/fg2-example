@@ -1,4 +1,5 @@
-更新：
+## 更新：
+
 2023年6月23日
 添加并验证了boids_bruteforce，boids_spatial3D_wrapped，circles_bruteforce三个模型的python+cuda 版本。
 
