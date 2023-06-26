@@ -71,7 +71,7 @@ def define_environment(model):
 
 def define_messages(model, env):
 #   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
-    message = model.newMessageBruteForce("location")
+    message = model.newMessageSpatial3D("location")
     message.newVariableID("id")
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
