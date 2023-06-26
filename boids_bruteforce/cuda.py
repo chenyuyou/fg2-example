@@ -17,8 +17,6 @@ FLAMEGPU_HOST_DEVICE_FUNCTION float vec3Length(const float x, const float y, con
     return sqrtf(x * x + y * y + z * z);
 }
 
-
-
 FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Mult(float &x, float &y, float &z, const float multiplier) {
     x *= multiplier;
     y *= multiplier;

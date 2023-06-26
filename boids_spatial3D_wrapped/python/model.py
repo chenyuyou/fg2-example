@@ -205,7 +205,7 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
         agent_z -= width
 
     # Update wing speed and animation position
-    agent_fscale = vec3Length(agent_fx, agent_fy, agent_fz)
+#    agent_fscale = vec3Length(agent_fx, agent_fy, agent_fz)
     wing_position = pyflamegpu.getVariableFloat("wing_position") + agent_fscale*GLOBAL_SCALE
 
     # Update global agent memory.
@@ -379,8 +379,8 @@ def initialise_simulation(seed):
 # Export Pop (optional)
 # cudaSimulation.exportData("end.xml")
 
-    if pyflamegpu.VISUALISATION:
-        visualisation.join()
+#    if pyflamegpu.VISUALISATION:
+#        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()

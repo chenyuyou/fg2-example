@@ -171,8 +171,8 @@ def initialise_simulation(seed):
 
 # cudaSimulation.exportData("end.xml");
 
-    if pyflamegpu.VISUALISATION:
-        visualisation.join()
+#    if pyflamegpu.VISUALISATION:
+#        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()
