@@ -1,29 +1,39 @@
-#! /usr/bin/env python3
-from textwrap import indent
 from pyflamegpu import *
 import pyflamegpu.codegen
-import sys, random, math, pathlib, time
+import sys, random, math, time
 
-def vec3Mult(x, y, z, multiplier):
-    x *= multiplier
-    y *= multiplier
-    z *= multiplier
-    
-def vec3Div(x, y, z, divisor):
+def vec3DivP(x, y, z, divisor):
     x /= divisor
     y /= divisor
     z /= divisor
 
-def vec3Normalize(x, y, z):
+def vec3NormalizeP(x, y, z):
     length = math.sqrt(x * x + y * y + z * z)
-    vec3Div(x, y, z, length)
+    vec3DivP(x, y, z, length)
+
+def vec3MultP(x, y, z, multiplier):
+    x *= multiplier
+    y *= multiplier
+    z *= multiplier
 
 @pyflamegpu.device_function
 def vec3Length(x: float, y: float, z: float) -> float :
-    return math.sqrtf(x * x + y * y + z * z)
+    return math.sqrt(x * x + y * y + z * z)
+
+@pyflamegpu.device_function  
+def vec3Mult(x: float, y: float, z: float, multiplier: float)-> None:
+    x *= multiplier
+    y *= multiplier
+    z *= multiplier
+
+@pyflamegpu.device_function  
+def vec3Div(x: float, y: float, z: float, divisor: float)-> None:
+    x /= divisor
+    y /= divisor
+    z /= divisor
 
 @pyflamegpu.device_function
-def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
+def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float)-> None:
     x = MIN_POSITION if (x < MIN_POSITION) else x
     x = MAX_POSITION if (x > MAX_POSITION) else x
 
@@ -32,6 +42,7 @@ def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITIO
 
     z = MIN_POSITION if (z < MIN_POSITION) else z
     z = MAX_POSITION if (z > MAX_POSITION) else z
+
 
 @pyflamegpu.agent_function
 def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.MessageSpatial3D):
@@ -168,9 +179,6 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
         vec3Mult(agent_fx, agent_fy, agent_fz, minSpeed)
 
 
-
-
-
     # Wrap positions
     wallInteractionDistance = 0.10
     wallSteerStrength = 0.05
@@ -198,7 +206,7 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     agent_z += agent_fz * TIME_SCALE
 
 
-    clampPosition(agent_x, agent_y, agent_z, pyflamegpu.environment.getProperty<float>("MIN_POSITION"), pyflamegpu.environment.getProperty<float>("MAX_POSITION"))
+    clampPosition(agent_x, agent_y, agent_z, pyflamegpu.environment.getPropertyFloat("MIN_POSITION"), pyflamegpu.environment.getPropertyFloat("MAX_POSITION"))
 
     # Update global agent memory.
     pyflamegpu.setVariableFloat("x", agent_x)
@@ -246,13 +254,11 @@ def define_environment(model):
 def define_messages(model, env):
 # Location message
     message = model.newMessageSpatial3D("location")
-# Set the range and bounds.
+    
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
     message.setMax(env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"))
-# A message to hold the location of an agent.
     message.newVariableID("id")
-# X Y Z are implicit.
 # message.newVariable<float>("x")
 # message.newVariable<float>("y")
 # message.newVariable<float>("z")
@@ -269,19 +275,16 @@ def define_agents(model):
     agent.newVariableFloat("fx")
     agent.newVariableFloat("fy")
     agent.newVariableFloat("fz")
-    agent.newVariableFloat("wing_position")
-    agent.newVariableFloat("wing_animation")
     outputdata_translated = pyflamegpu.codegen.translate(outputdata)
     inputdata_translated = pyflamegpu.codegen.translate(inputdata)
     agent.newRTCFunction("outputdata", outputdata_translated).setMessageOutput("location")
     agent.newRTCFunction("inputdata", inputdata_translated).setMessageInput("location")
 
-
 def define_execution_order(model):
-# Layer #1
-    model.newLayer().addAgentFunction("Boid", "outputdata")
-# Layer #2
-    model.newLayer().addAgentFunction("Boid", "inputdata")
+    layer = model.newLayer()
+    layer.addAgentFunction("Boid", "outputdata")
+    layer = model.newLayer()
+    layer.addAgentFunction("Boid", "inputdata")
 
 def initialise_simulation(seed):
     model = create_model()
@@ -337,7 +340,6 @@ def initialise_simulation(seed):
         population = pyflamegpu.AgentVector(model.Agent("Boid"), populationSize)
         for i in range(populationSize):
             instance = population[i]
-
         # Agent position in space
             instance.setVariableFloat("x", random.uniform(min_pos, max_pos))
             instance.setVariableFloat("y", random.uniform(min_pos, max_pos))
@@ -350,8 +352,8 @@ def initialise_simulation(seed):
         # Generate a random speed between 0 and the maximum initial speed
             fmagnitude = random.uniform(min_speed, max_speed)
         # Use the random speed for the velocity.
-            vec3Normalize(fx, fy, fz)
-            vec3Mult(fx, fy, fz, fmagnitude)
+            vec3NormalizeP(fx, fy, fz)
+            vec3MultP(fx, fy, fz, fmagnitude)
 
         # Set these for the agent.
             instance.setVariableFloat("fx", fx)
@@ -369,7 +371,7 @@ def initialise_simulation(seed):
         visualisation.join()
 
 # Ensure profiling / memcheck work correctly
-    pyflamegpu.cleanup()
+#    pyflamegpu.cleanup()
 
 if __name__ == "__main__":
     start=time.time()

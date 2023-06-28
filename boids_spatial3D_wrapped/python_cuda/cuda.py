@@ -17,35 +17,6 @@ FLAMEGPU_HOST_DEVICE_FUNCTION float vec3Length(const float x, const float y, con
     return sqrtf(x * x + y * y + z * z);
 }
 
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Mult(float &x, float &y, float &z, const float multiplier) {
-    x *= multiplier;
-    y *= multiplier;
-    z *= multiplier;
-}
-
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Div(float &x, float &y, float &z, const float divisor) {
-    x /= divisor;
-    y /= divisor;
-    z /= divisor;
-}
-
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Normalize(float &x, float &y, float &z) {
-    // Get the length
-    float length = vec3Length(x, y, z);
-    vec3Div(x, y, z, length);
-}
-
-FLAMEGPU_HOST_DEVICE_FUNCTION void clampPosition(float &x, float &y, float &z, const float MIN_POSITION, const float MAX_POSITION) {
-    x = (x < MIN_POSITION)? MIN_POSITION: x;
-    x = (x > MAX_POSITION)? MAX_POSITION: x;
-
-    y = (y < MIN_POSITION)? MIN_POSITION: y;
-    y = (y > MAX_POSITION)? MAX_POSITION: y;
-
-    z = (z < MIN_POSITION)? MIN_POSITION: z;
-    z = (z > MAX_POSITION)? MAX_POSITION: z;
-}
-
 FLAMEGPU_AGENT_FUNCTION(inputdata, flamegpu::MessageSpatial3D, flamegpu::MessageNone) {
     // Agent properties in local register
     const flamegpu::id_t id = FLAMEGPU->getID();

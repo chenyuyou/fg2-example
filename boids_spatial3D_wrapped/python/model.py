@@ -1,5 +1,3 @@
-#! /usr/bin/env python3
-from textwrap import indent
 from pyflamegpu import *
 import pyflamegpu.codegen
 import sys, random, math, pathlib, time
@@ -20,13 +18,7 @@ def vec3Normalize(x, y, z):
 
 @pyflamegpu.device_function
 def vec3Length(x: float, y: float, z: float) -> float :
-    return math.sqrtf(x * x + y * y + z * z)
-
-@pyflamegpu.device_function
-def clamp(v : float, min: float, max: float) -> float:
-    v = min if v < min else v
-    v = max if v > max else v
-    return v
+    return math.sqrt(x * x + y * y + z * z)
 
 @pyflamegpu.agent_function
 def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.MessageSpatial3D):
@@ -301,7 +293,8 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-
+    cudaSimulation.initialise(sys.argv)
+    
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
 # Configure vis
@@ -334,7 +327,7 @@ def initialise_simulation(seed):
         ui.newEnvironmentPropertySliderFloat("MATCH_SCALE", 0.00, 0.10)
         visualisation.activate()
 
-    cudaSimulation.initialise(sys.argv)
+#    cudaSimulation.initialise(sys.argv)
 
     if not cudaSimulation.SimulationConfig().input_file:
     # Uniformly distribute agents within space, with uniformly distributed initial velocity.

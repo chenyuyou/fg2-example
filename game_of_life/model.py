@@ -12,8 +12,8 @@ def create_model():
 def define_environment(model):
 #   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
-    env.newPropertyUInt("SQRT_AGENT_COUNT", 100)
-    env.newPropertyUInt("AGENT_COUNT", int(env.getPropertyUInt("SQRT_AGENT_COUNT")*env.getPropertyUInt("SQRT_AGENT_COUNT")))  
+    env.newPropertyUInt("SQRT_AGENT_COUNT", 1000)
+    env.newPropertyUInt("AGENT_COUNT", env.getPropertyUInt("SQRT_AGENT_COUNT")*env.getPropertyUInt("SQRT_AGENT_COUNT"))
     env.newPropertyFloat("repulse", 0.05)
     env.newPropertyFloat("radius", 1.0)
     return env
@@ -32,11 +32,14 @@ def define_agents(model):
     if pyflamegpu.VISUALISATION:
         agent.newVariableFloat("x")
         agent.newVariableFloat("y")
+    agent.newRTCFunction("output", output).setMessageOutput("is_alive_message")
+    agent.newRTCFunction("update", update).setMessageInput("is_alive_message")
+
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
-    out_fn = agent.newRTCFunction("output", output)
-    out_fn.setMessageOutput("is_alive_message")
-    in_fn = agent.newRTCFunction("update", update)
-    in_fn.setMessageInput("is_alive_message")
+#    out_fn = agent.newRTCFunction("output", output)
+#    out_fn.setMessageOutput("is_alive_message")
+#    in_fn = agent.newRTCFunction("update", update)
+#    in_fn.setMessageInput("is_alive_message")
 
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
@@ -53,16 +56,16 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-    cudaSimulation.initialise(sys.argv) # 按照提示符参数运行
+    cudaSimulation.initialise(sys.argv)
 
 #   设置可视化
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
         visualisation.setBeginPaused(True)
 #   设置相机所在位置和速度
-        visualisation.setSimulationSpeed(5)
-        visualisation.setInitialCameraLocation(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 450.0)
-        visualisation.setInitialCameraTarget(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 0.0)
+#        visualisation.setSimulationSpeed(5)
+        visualisation.setInitialCameraLocation(env.getPropertyUInt("SQRT_AGENT_COUNT")/2.0, env.getPropertyUInt("SQRT_AGENT_COUNT")/2.0, 450.0)
+        visualisation.setInitialCameraTarget(env.getPropertyUInt("SQRT_AGENT_COUNT")/2.0, env.getPropertyUInt("SQRT_AGENT_COUNT")/2.0, 0.0)
         visualisation.setCameraSpeed(0.001 * env.getPropertyUInt("SQRT_AGENT_COUNT"))
 #        visualisation.setOrthographic(True)
 #        visualisation.setOrthographicZoomModifier(1.409)
@@ -78,13 +81,15 @@ def initialise_simulation(seed):
         agt.setColor(cell_colors)
 #   打开可视化窗口
         visualisation.activate()
-
+        
+ # 按照提示符参数运行
 
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
-        init_pop = pyflamegpu.AgentVector(model.Agent("cell"), env.getPropertyUInt("AGENT_COUNT"))
+        init_pop = pyflamegpu.AgentVector(model.Agent("cell"))
+        init_pop.reserve(env.getPropertyUInt("AGENT_COUNT"))
         for x in range(env.getPropertyUInt("SQRT_AGENT_COUNT")):
             for y in range(env.getPropertyUInt("SQRT_AGENT_COUNT")):
                 init_pop.push_back()
@@ -100,15 +105,10 @@ def initialise_simulation(seed):
                     instance.setVariableFloat("y", y)
         cudaSimulation.setPopulationData(init_pop)
 
-
     cudaSimulation.simulate()
 
-
-
-
-
-    if pyflamegpu.VISUALISATION:
-        visualisation.join()
+#    if pyflamegpu.VISUALISATION:
+#        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()

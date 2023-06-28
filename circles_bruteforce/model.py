@@ -85,9 +85,9 @@ def initialise_simulation(seed):
         cudaSimulation.setPopulationData(population)
     cudaSimulation.simulate()
 
-    if pyflamegpu.VISUALISATION:
+#    if pyflamegpu.VISUALISATION:
     # 模拟完成后保持可视化窗口处于活动状态
-        m_vis.join()
+#        m_vis.join()
 
 if __name__ == "__main__":
     start=time.time()

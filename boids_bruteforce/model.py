@@ -2,7 +2,7 @@
 from pyflamegpu import *
 import sys, random, time
 from cuda import *
-import math, pathlib
+import math
 
 def vec3Length(x, y, z):
     return math.sqrt(x * x + y * y + z * z)
@@ -109,6 +109,7 @@ def initialise_simulation(seed):
 
     cudaSimulation = pyflamegpu.CUDASimulation(model)
 
+    cudaSimulation.initialise(sys.argv)
 
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
@@ -140,7 +141,7 @@ def initialise_simulation(seed):
 
         visualisation.activate()
 
-    cudaSimulation.initialise(sys.argv)
+#    cudaSimulation.initialise(sys.argv)
 
 
 
@@ -184,8 +185,8 @@ def initialise_simulation(seed):
 
 # cudaSimulation.exportData("end.xml");
 
-    if pyflamegpu.VISUALISATION:
-        visualisation.join()
+#    if pyflamegpu.VISUALISATION:
+#        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()

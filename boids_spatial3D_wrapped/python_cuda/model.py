@@ -92,7 +92,7 @@ def initialise_simulation(seed):
     define_execution_order(model)
 
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-
+    cudaSimulation.initialise(sys.argv)
 
     if pyflamegpu.VISUALISATION:
         visualisation = cudaSimulation.getVisualisation()
@@ -124,7 +124,7 @@ def initialise_simulation(seed):
         ui.newEnvironmentPropertySliderFloat("MATCH_SCALE", 0.00, 0.10)
         visualisation.activate()
 
-    cudaSimulation.initialise(sys.argv)
+##    cudaSimulation.initialise(sys.argv)
 
 
 
@@ -171,8 +171,8 @@ def initialise_simulation(seed):
 
 # cudaSimulation.exportData("end.xml");
 
-    if pyflamegpu.VISUALISATION:
-        visualisation.join()
+#    if pyflamegpu.VISUALISATION:
+#        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()

@@ -17,16 +17,7 @@ inputdata = r"""
 FLAMEGPU_HOST_DEVICE_FUNCTION float vec3Length(const float x, const float y, const float z) {
     return sqrtf(x * x + y * y + z * z);
 }
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Add(float &x, float &y, float &z, const float value) {
-    x += value;
-    y += value;
-    z += value;
-}
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Sub(float &x, float &y, float &z, const float value) {
-    x -= value;
-    y -= value;
-    z -= value;
-}
+
 FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Mult(float &x, float &y, float &z, const float multiplier) {
     x *= multiplier;
     y *= multiplier;
@@ -37,11 +28,7 @@ FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Div(float &x, float &y, float &z, const f
     y /= divisor;
     z /= divisor;
 }
-FLAMEGPU_HOST_DEVICE_FUNCTION void vec3Normalize(float &x, float &y, float &z) {
-    // Get the length
-    float length = vec3Length(x, y, z);
-    vec3Div(x, y, z, length);
-}
+
 FLAMEGPU_HOST_DEVICE_FUNCTION void clampPosition(float &x, float &y, float &z, const float MIN_POSITION, const float MAX_POSITION) {
     x = (x < MIN_POSITION)? MIN_POSITION: x;
     x = (x > MAX_POSITION)? MAX_POSITION: x;

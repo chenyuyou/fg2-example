@@ -5,21 +5,10 @@ from cuda import *
 def vec3Length(x, y, z):
     return math.sqrt(x * x + y * y + z * z)
 
-def vec3Add(x, y, z, value):
-    x += value
-    y += value
-    z += value
-
-def vec3Sub(x, y, z, value):
-    x -= value
-    y -= value
-    z -= value
-
 def vec3Mult(x, y, z, multiplier):
     x *= multiplier
     y *= multiplier
     z *= multiplier
-
 
 def vec3Div(x, y, z, divisor):
     x /= divisor
@@ -30,16 +19,6 @@ def vec3Normalize(x, y, z):
     # Get the length
     length = vec3Length(x, y, z)
     vec3Div(x, y, z, length)
-
-def clampPosition(x, y, z, MIN_POSITION, MAX_POSITION):
-    x = MIN_POSITION if (x < MIN_POSITION) else x
-    x = MAX_POSITION if (x > MAX_POSITION) else x
-
-    y = MIN_POSITION if (y < MIN_POSITION) else y
-    y = MAX_POSITION if (y > MAX_POSITION) else y
-
-    z = MIN_POSITION if (z < MIN_POSITION) else z
-    z = MAX_POSITION if (z > MAX_POSITION) else z
 
 def create_model():
 #   创建模型，并且起名

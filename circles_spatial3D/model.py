@@ -67,7 +67,7 @@ def initialise_simulation(seed):
         INIT_CAM = env.getPropertyFloat("ENV_MAX") * 1.25
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM)
         m_vis.setCameraSpeed(0.01)
-        m_vis.setSimulationSpeed(25)
+#        m_vis.setSimulationSpeed(25)
         circ_agt = m_vis.addAgent("Circle")
         circ_agt.setModel(pyflamegpu.ICOSPHERE)
         circ_agt.setModelScale(1/10.0)
@@ -89,8 +89,8 @@ def initialise_simulation(seed):
 #    cudaSimulation.exportData("end.xml")
 
 
-    if pyflamegpu.VISUALISATION:
-        m_vis.join()
+#    if pyflamegpu.VISUALISATION:
+#        m_vis.join()
 
 if __name__ == "__main__":
     start=time.time()
