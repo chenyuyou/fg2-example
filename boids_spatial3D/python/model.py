@@ -26,7 +26,7 @@ def vec3Normalize(x, y, z):
 
 
 def main():
-    model = pyflamegpu.ModelDescription("Boids Spatial3D (Python RTC)")
+    model = pyflamegpu.ModelDescription("Boids Spatial3D (Python)")
 
 
     env = model.Environment()

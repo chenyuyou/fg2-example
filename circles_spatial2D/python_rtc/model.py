@@ -61,7 +61,7 @@ def initialise_simulation(seed):
         m_vis.setInitialCameraTarget(INIT_CAM, INIT_CAM, 0)
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, env.getPropertyFloat("ENV_WIDTH"))
         m_vis.setCameraSpeed(0.01)
-        m_vis.setSimulationSpeed(25)
+#        m_vis.setSimulationSpeed(25)
 #   将“point” agent添加到可视化中
         point_agt = m_vis.addAgent("point")
 #   设置“point” agent的形状和大小
@@ -90,9 +90,9 @@ def initialise_simulation(seed):
         cudaSimulation.setPopulationData(population)
     cudaSimulation.simulate()
 
-    if pyflamegpu.VISUALISATION:
+#    if pyflamegpu.VISUALISATION:
     # 模拟完成后保持可视化窗口处于活动状态
-        m_vis.join()
+#        m_vis.join()
 
 if __name__ == "__main__":
     start=time.time()
