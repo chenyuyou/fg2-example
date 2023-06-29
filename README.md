@@ -53,14 +53,15 @@ boids_spatial3D_wrapped模型测速
 | python rtc和cuda | 10000   |18.27s|3070Ti|
 
 2023年6月23日
-添加并验证了circles_spatial2D模型的python_rtc版本。
+添加并验证了circles_spatial2D模型的python_rtc, c++版本。python版本有问题。
 添加并验证了circles_spatial3D模型的python_rtc版本和c++版本。
 
 circles_spatial2D模型测速
 | 运行组合 | 测试周期数 |消耗时间|显卡|
 |------|------|------|------|
-| c++和cuda | 10000   |未测试|3070Ti|
+| c++和cuda | 10000   |8.65|3070Ti|
 | python rtc和cuda | 10000  |7s|3070Ti|
+| python | 10000  |7s|3070Ti|
 
 circles_spatial3D模型测速
 | 运行组合 | 测试周期数 |消耗时间|显卡|
