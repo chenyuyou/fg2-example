@@ -22,7 +22,7 @@ def vec3Normalize(x, y, z):
 
 def create_model():
 #   创建模型，并且起名
-    model = pyflamegpu.ModelDescription("Boids Spatial3D (Python)")
+    model = pyflamegpu.ModelDescription("Boids Spatial3D python RTC")
     return model
 
 def define_environment(model):
@@ -90,7 +90,7 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-
+    cudaSimulation.initialise(sys.argv)
 
 #   设置可视化
     if pyflamegpu.VISUALISATION:
@@ -122,7 +122,7 @@ def initialise_simulation(seed):
         ui.newEnvironmentPropertyDragFloat("MATCH_SCALE", 0.0, 10.0, 0.001)
         visualisation.activate()
 
-    cudaSimulation.initialise(sys.argv)
+
 
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
@@ -156,9 +156,9 @@ def initialise_simulation(seed):
         cudaSimulation.setPopulationData(population)
     cudaSimulation.simulate()
 
-    if pyflamegpu.VISUALISATION:
+#    if pyflamegpu.VISUALISATION:
     # 模拟完成后保持可视化窗口处于活动状态
-        visualisation.join()
+#        visualisation.join()
     pyflamegpu.cleanup()
 
 if __name__ == "__main__":
