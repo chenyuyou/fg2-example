@@ -4,15 +4,17 @@ from cuda import *
 
 def create_model():
 #   创建模型，并且起名
-    model = pyflamegpu.ModelDescription("Circles Spatial2D")
+    model = pyflamegpu.ModelDescription("boids_spatial3D")
     return model
 
 def define_environment(model):
 #   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
-    env.newPropertyUInt("AGENT_COUNT", 16384)
-    env.newPropertyFloat("ENV_WIDTH", int(env.getPropertyUInt("AGENT_COUNT")**(1/3)))  
-    env.newPropertyFloat("repulse", 0.05)
+    env.newPropertyUInt("POPULATION_TO_GENERATE", 100000, True)
+    env.newPropertyUInt("STEPS", 10)
+    env.newPropertyUInt("init", 0)
+    env.newPropertyUInt("init_offset", 1)
+    env.newPropertyUInt("offset", 10)
     return env
 
 def define_messages(model, env):
@@ -25,23 +27,18 @@ def define_messages(model, env):
 
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
-    agent = model.newAgent("point")
+    agent = model.newAgent("Agent")
     agent.newVariableFloat("x")
-    agent.newVariableFloat("y")
-    agent.newVariableFloat("z")
-    agent.newVariableFloat("drift", 0)
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
-    out_fn = agent.newRTCFunction("output_message", output_message)
-    out_fn.setMessageOutput("location")
-    in_fn = agent.newRTCFunction("input_message", input_message)
-    in_fn.setMessageInput("location")
+    agent.newRTCFunction("AddOffset", AddOffset)
+
 
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
     layer = model.newLayer()
-    layer.addAgentFunction("point", "output_message")
-    layer = model.newLayer()
-    layer.addAgentFunction("point", "input_message")
+    layer.addAgentFunction("AddOffset", "AddOffset")
+    model.addInitFunction(init)
+    model.addExitFunction(exit1)
 
 def initialise_simulation(seed):
     model = create_model()
