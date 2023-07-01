@@ -1,47 +1,87 @@
-output_message = r"""
-FLAMEGPU_AGENT_FUNCTION(output_message, flamegpu::MessageNone, flamegpu::MessageSpatial2D) {
-    FLAMEGPU->message_out.setVariable<flamegpu::id_t>("id", FLAMEGPU->getID());
-    FLAMEGPU->message_out.setLocation(
-        FLAMEGPU->getVariable<float>("x"),
-        FLAMEGPU->getVariable<float>("y"));
+device_function = r"""
+FLAMEGPU_AGENT_FUNCTION(device_function, flamegpu::MessageNone, flamegpu::MessageNone) {
+    const float prop_float = FLAMEGPU->environment.getProperty<float>("float");
+    const int16_t prop_int16 = FLAMEGPU->environment.getProperty<int16_t>("int16_t");
+    const uint64_t prop_uint64_0 = FLAMEGPU->environment.getProperty<uint64_t, 3>("uint64_t", 0);
+    const uint64_t prop_uint64_1 = FLAMEGPU->environment.getProperty<uint64_t, 3>("uint64_t", 1);
+    const uint64_t prop_uint64_2 = FLAMEGPU->environment.getProperty<uint64_t, 3>("uint64_t", 2);
+    if (blockIdx.x * blockDim.x + threadIdx.x == 0) {
+        printf("Agent Function[Thread 0]! Properties(Float: %g, int16: %hd, uint64[3]: {%llu, %llu, %llu})\n", prop_float, prop_int16, prop_uint64_0, prop_uint64_1, prop_uint64_2);
+    }
     return flamegpu::ALIVE;
 }
 """
 
 # agent函数读取位置消息并决定agent应该如何移动
-input_message = r"""
-FLAMEGPU_AGENT_FUNCTION(input_message, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
-    const flamegpu::id_t ID = FLAMEGPU->getID();
-    const float REPULSE_FACTOR = FLAMEGPU->environment.getProperty<float>("repulse");
-    const float RADIUS = FLAMEGPU->message_in.radius();
-    float fx = 0.0;
-    float fy = 0.0;
-    const float x1 = FLAMEGPU->getVariable<float>("x");
-    const float y1 = FLAMEGPU->getVariable<float>("y");
-    int count = 0;
-    for (const auto &message : FLAMEGPU->message_in(x1, y1)) {
-        if (message.getVariable<flamegpu::id_t>("id") != ID) {
-            const float x2 = message.getVariable<float>("x");
-            const float y2 = message.getVariable<float>("y");
-            float x21 = x2 - x1;
-            float y21 = y2 - y1;
-            const float separation = sqrt(x21*x21 + y21*y21);
-            if (separation < RADIUS && separation > 0.0f) {
-                float k = sinf((separation / RADIUS)*3.141f*-2)*REPULSE_FACTOR;
-                // Normalise without recalculating separation
-                x21 /= separation;
-                y21 /= separation;
-                fx += k * x21;
-                fy += k * y21;
-                count++;
-            }
-        }
+init_function = r"""
+FLAMEGPU_INIT_FUNCTION(init_function) {
+    flamegpu::HostAgentAPI agent = FLAMEGPU->agent("agent");
+    float min_x = agent.min<float>("x");
+    float max_x = agent.max<float>("x");
+    printf("Init Function! (AgentCount: %u, Min: %g, Max: %g)\n", FLAMEGPU->agent("agent").count(), min_x, max_x);
+    for (unsigned int i = AGENT_COUNT / 2; i < AGENT_COUNT; i++) {
+        flamegpu::HostNewAgentAPI instance = agent.newAgent();
+        instance.setVariable<float>("x", static_cast<float>(i));
+        instance.setVariable<int>("a", i % 2 == 0 ? 1 : 0);
     }
-    fx /= count > 0 ? count : 1;
-    fy /= count > 0 ? count : 1;
-    FLAMEGPU->setVariable<float>("x", x1 + fx);
-    FLAMEGPU->setVariable<float>("y", y1 + fy);
-    FLAMEGPU->setVariable<float>("drift", sqrt(fx*fx + fy*fy));
-    return flamegpu::ALIVE;
+    printf("Init Function! Created %u more agents\n", AGENT_COUNT / 2);
+}
+FLAMEGPU_CUSTOM_REDUCTION(customSum, a, b) {
+    return a + b;
+}
+"""
+customSum=r"""
+FLAMEGPU_CUSTOM_REDUCTION(customSum, a, b) {
+    return a + b;
+}
+"""
+
+customTransform=r"""
+FLAMEGPU_CUSTOM_TRANSFORM(customTransform, a) {
+    return (a == 0 || a == 1) ? 1 : 0;
+}
+"""
+
+step_function = r"""
+FLAMEGPU_STEP_FUNCTION(step_function) {
+    auto agent = FLAMEGPU->agent("agent");
+    int sum_a = agent.sum<int>("a");
+    int custom_sum_a = agent.reduce<int>("a", customSum, 0);
+    unsigned int count_a = agent.count<int>("a", 1);
+    unsigned int countif_a = agent.transformReduce<int, unsigned int>("a", customTransform, customSum, 0u);
+    printf("Step Function! (AgentCount: %u, Sum: %d, CustomSum: %d, Count: %u, CustomCountIf: %u)\n", agent.count(), sum_a, custom_sum_a, count_a, countif_a);
+}
+"""
+
+exit_function=r"""
+FLAMEGPU_EXIT_FUNCTION(exit_function) {
+    float uniform_real = FLAMEGPU->random.uniform<float>();
+    int uniform_int = FLAMEGPU->random.uniform<int>(1, 10);
+    float normal = FLAMEGPU->random.normal<float>();
+    float logNormal = FLAMEGPU->random.logNormal<float>(1, 1);
+    printf("Exit Function! (%g, %i, %g, %g)\n",
+        uniform_real, uniform_int, normal, logNormal);
+}
+"""
+
+host_function=r"""
+FLAMEGPU_HOST_FUNCTION(host_function) {
+    std::vector<unsigned int> hist_x = FLAMEGPU->agent("agent").histogramEven<float>("x", 8, -0.5, 1023.5);
+    printf("Host Function! (Hist: [%u, %u, %u, %u, %u, %u, %u, %u]\n",
+        hist_x[0], hist_x[1], hist_x[2], hist_x[3], hist_x[4], hist_x[5], hist_x[6], hist_x[7]);
+    FLAMEGPU->environment.setProperty<int16_t>("int16_t", FLAMEGPU->environment.getProperty<int16_t>("int16_t") + 1);
+}
+"""
+
+exit_condition=r"""
+FLAMEGPU_EXIT_CONDITION(exit_condition) {
+    const float CHANCE = 0.15f;
+    float uniform_real = FLAMEGPU->random.uniform<float>();
+    printf("Exit Condition! (Rolled: %g)\n", uniform_real);
+    if (uniform_real < CHANCE) {
+        printf("Rolled number is less than %g, exiting!\n", CHANCE);
+        return flamegpu::EXIT;
+    }
+    return flamegpu::CONTINUE;
 }
 """
