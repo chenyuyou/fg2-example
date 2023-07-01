@@ -4,7 +4,7 @@ from cuda import *
 
 def create_model():
 #   创建模型，并且起名
-    model = pyflamegpu.ModelDescription("Circles Spatial2D")
+    model = pyflamegpu.ModelDescription("host_functions_example")
     return model
 
 def define_environment(model):
@@ -25,16 +25,11 @@ def define_messages(model, env):
 
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
-    agent = model.newAgent("point")
+    agent = model.newAgent("agent")
     agent.newVariableFloat("x")
-    agent.newVariableFloat("y")
-    agent.newVariableFloat("z")
-    agent.newVariableFloat("drift", 0)
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
-    out_fn = agent.newRTCFunction("output_message", output_message)
-    out_fn.setMessageOutput("location")
-    in_fn = agent.newRTCFunction("input_message", input_message)
-    in_fn.setMessageInput("location")
+    agent.newRTCFunction("device_function", device_function)
+
 
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
