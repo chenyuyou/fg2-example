@@ -2,6 +2,25 @@ from pyflamegpu import *
 import time, sys, random
 from cuda import *
 
+
+class create_agents(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        # Fetch the desired agent count and environment width
+        AGENT_COUNT = FLAMEGPU.environment.getPropertyUInt("AGENT_COUNT")
+#        ENV_WIDTH = FLAMEGPU.environment.getPropertyFloat("ENV_WIDTH")
+        # Create agents
+        agent = FLAMEGPU.agent("agent")
+        min_x = agent.minFloat("x")
+        max_x = agent.maxFlout("x")        
+        print("Init Function! (AgentCount: {}, Min: {}, Max: {})".format(FLAMEGPU.agent("agent").count(), min_x, max_x))
+        for i in range(AGENT_COUNT/):
+            t = agent.newAgent()
+            t.setVariableFloat("x",  float(i))
+            t.setVariableInt("y", 1 if i % 2 == 0 else 0)
+
+
+
+
 def create_model():
 #   创建模型，并且起名
     model = pyflamegpu.ModelDescription("host_functions_example")
@@ -17,11 +36,7 @@ def define_environment(model):
 
 def define_messages(model, env):
 #   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
-    message = model.newMessageSpatial2D("location")
-    message.newVariableID("id")
-    message.setRadius(1)
-    message.setMin(0, 0)
-    message.setMax(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"))
+    pass
 
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
@@ -32,11 +47,15 @@ def define_agents(model):
 
 
 def define_execution_order(model):
+    model.addInitFunction(init_function)
+    model.addStepFunction(step_function)
+    model.addExitFunction(exit_function)
+    model.addExitCondition(exit_condition)
 #   引入层主要目的是确定agent行动的顺序。
-    layer = model.newLayer()
-    layer.addAgentFunction("point", "output_message")
-    layer = model.newLayer()
-    layer.addAgentFunction("point", "input_message")
+    devicefn_layer = model.newLayer("devicefn_layer")
+    devicefn_layer.addAgentFunction("agent","device_function")
+    hostfn_layer = model.newLayer("hostfn_layer")
+    hostfn_layer.addHostFunction("agent","host_function")
 
 def initialise_simulation(seed):
     model = create_model()
@@ -47,46 +66,21 @@ def initialise_simulation(seed):
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
     cudaSimulation.initialise(sys.argv)
-
-#   设置可视化
-    if pyflamegpu.VISUALISATION:
-        m_vis = cudaSimulation.getVisualisation()
-#   设置相机所在位置和速度
-        INIT_CAM = env.getPropertyFloat("ENV_WIDTH")/2
-        m_vis.setInitialCameraTarget(INIT_CAM, INIT_CAM, 0)
-        m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, env.getPropertyFloat("ENV_WIDTH"))
-        m_vis.setCameraSpeed(0.01)
-        m_vis.setSimulationSpeed(25)
-#   将“point” agent添加到可视化中
-        point_agt = m_vis.addAgent("point")
-#   设置“point” agent的形状和大小
-        point_agt.setModel(pyflamegpu.ICOSPHERE)
-        point_agt.setModelScale(1/10.0)
-#   标记环境边界 
-        pen = m_vis.newPolylineSketch(1, 1, 1, 0.2)
-        pen.addVertex(0, 0, 0)
-        pen.addVertex(0, env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), 0, 0)
-        pen.addVertex(0, 0, 0)
-#   打开可视化窗口
-        m_vis.activate()
     
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
-        random.seed(cudaSimulation.SimulationConfig().random_seed)
-        population = pyflamegpu.AgentVector(model.Agent("point"), env.getPropertyUInt("AGENT_COUNT"))
-        for i in range(env.getPropertyUInt("AGENT_COUNT")):
+        cudaSimulation.SimulationConfig().steps = 0
+        population = pyflamegpu.AgentVector(model.Agent("agent"), env.getPropertyUInt("AGENT_COUNT")/2)
+        for i in range(env.getPropertyUInt("AGENT_COUNT")/2):
             instance = population[i]
-            instance.setVariableFloat("x",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
-            instance.setVariableFloat("y",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
+            instance.setVariableFloat("x",  float(i))
+            instance.setVariableInt("a", 1 if i % 2 == 0 else 0 )
         cudaSimulation.setPopulationData(population)
     cudaSimulation.simulate()
 
-    if pyflamegpu.VISUALISATION:
-    # 模拟完成后保持可视化窗口处于活动状态
-        m_vis.join()
+    pyflamegpu.cleanup()
+
 
 if __name__ == "__main__":
     start=time.time()

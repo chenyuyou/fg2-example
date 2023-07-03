@@ -4,6 +4,20 @@ from numpy import cbrt, floor
 import random, time, math, sys
 from cuda import *
 
+class create_agents(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        # Fetch the desired agent count and environment width
+        AGENT_COUNT = FLAMEGPU.environment.getPropertyUInt("AGENT_COUNT")
+        ENV_WIDTH = FLAMEGPU.environment.getPropertyFloat("ENV_WIDTH")
+        # Create agents
+        t_pop = FLAMEGPU.agent("point")
+        for i in range(AGENT_COUNT):
+            t = t_pop.newAgent()
+            t.setVariableFloat("x", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
+            t.setVariableFloat("y", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
+
+
+
 def create_model():
     model = pyflamegpu.ModelDescription("Circles Spatial3D")
     return model
@@ -67,7 +81,7 @@ def initialise_simulation(seed):
         INIT_CAM = env.getPropertyFloat("ENV_MAX") * 1.25
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, INIT_CAM)
         m_vis.setCameraSpeed(0.01)
-#        m_vis.setSimulationSpeed(25)
+        m_vis.setSimulationSpeed(25)
         circ_agt = m_vis.addAgent("Circle")
         circ_agt.setModel(pyflamegpu.ICOSPHERE)
         circ_agt.setModelScale(1/10.0)
