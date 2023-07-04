@@ -3,7 +3,7 @@ import time, sys, random
 from cuda import *
 
 
-class create_agents(pyflamegpu.HostFunction):
+class init_function(pyflamegpu.HostFunction):
     def run(self, FLAMEGPU):
         # Fetch the desired agent count and environment width
         AGENT_COUNT = FLAMEGPU.environment.getPropertyUInt("AGENT_COUNT")
@@ -14,12 +14,50 @@ class create_agents(pyflamegpu.HostFunction):
         max_x = agent.maxFlout("x")        
         print("Init Function! (AgentCount: {}, Min: {}, Max: {})".format(FLAMEGPU.agent("agent").count(), min_x, max_x))
         for i in range(AGENT_COUNT/):
-            t = agent.newAgent()
-            t.setVariableFloat("x",  float(i))
-            t.setVariableInt("y", 1 if i % 2 == 0 else 0)
+            instance = agent.newAgent()
+            instance.setVariableFloat("x",  float(i))
+            instance.setVariableInt("y", 1 if i % 2 == 0 else 0)
+
+def customSum(a, b):
+    return a + b
+
+def customTransform(a):
+    return if a == 0 or a == 1 else 0
 
 
+class step_function(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        # Fetch the desired agent count and environment width
+        agent = FLAMEGPU.agent("agent")
+        sum_a = agent.sumInt("a")
+        custom_sum_a = agent.reduceInt("a", customSum, 0)
+        count_a = agent.countInt("a", 1)
+        countif_a = agent.transformReduce<int, unsigned int>("a", customTransform, customSum, 0)
+        print("Step Function! (AgentCount: {}, Sum: {}, CustomSum: {}, Count: {}, CustomCountIf: {})".format(agent.count(), sum_a, custom_sum_a, count_a, countif_a))
 
+def exit_function():
+    uniform_real = random.uniform(0.0, 1.0)
+    uniform_int = random.randint(1, 10)
+    normal = random.normalvariate(0.0, 1.0)
+    log_normal = random.lognormvariate(1.0, 1.0)
+    print("Exit Function! ({}, {}, {}, {})".format(uniform_real, uniform_int, normal, log_normal))
+
+class step_function(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        hist_x = FLAMEGPU.agent("agent").histogramEvenFloat("x", 8, -0.5, 1023.5)
+        print("Host Function! (Hist: [{}, {}, {}, {}, {}, {}, {}, {}])".format(*hist_x))
+        FLAMEGPU.environment.setPropertyInt("int16_t", FLAMEGPU.environment.getPropertyInt("int16_t") + 1)
+
+class exit_condition(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        CHANCE = 0.15
+        uniform_real = random.uniform(0.0, 1.0)
+        print("Exit Condition! (Rolled: {})".format(uniform_real))
+        if uniform_real < CHANCE:
+            print("Rolled number is less than {}, exiting!".format(CHANCE))
+            return flamegpu.EXIT
+        else:
+            return flamegpu.CONTINUE
 
 def create_model():
 #   创建模型，并且起名

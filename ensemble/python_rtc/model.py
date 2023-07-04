@@ -2,6 +2,32 @@ from pyflamegpu import *
 import time, sys, random
 from cuda import *
 
+AddOffset = r"""
+FLAMEGPU_AGENT_FUNCTION(AddOffset, flamegpu::MessageNone, flamegpu::MessageNone) {
+    // Output each agents publicly visible properties.
+    FLAMEGPU->setVariable<int>("x", FLAMEGPU->getVariable<int>("x") + FLAMEGPU->environment.getProperty<int>("offset"));
+    return flamegpu::ALIVE;
+}
+"""
+
+class initfn(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        # Fetch the desired agent count and environment width
+        POPULATION_TO_GENERATE = FLAMEGPU.environment.getPropertyInt("POPULATION_TO_GENERATE")
+        Init = FLAMEGPU.environment.getPropertyInt("init")
+        Init_offset = FLAMEGPU.environment.getPropertyInt("init_offset")
+        # Create agents
+        agent = FLAMEGPU.agent("Agent")
+        for i in range(POPULATION_TO_GENERATE):
+            agent.newAgent().setVariableInt("x", Init + i * Init_offset)
+
+class exitfn(pyflamegpu.HostFunction):
+    def run(self, FLAMEGPU):
+        # Fetch the desired agent count and environment width
+        atomic_init += FLAMEGPU.environment.getPropertyInt("init")
+        atomic_result += FLAMEGPU.agent("Agent").sumInt("x")
+
+
 def create_model():
 #   创建模型，并且起名
     model = pyflamegpu.ModelDescription("boids_spatial3D")
@@ -19,11 +45,7 @@ def define_environment(model):
 
 def define_messages(model, env):
 #   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
-    message = model.newMessageSpatial2D("location")
-    message.newVariableID("id")
-    message.setRadius(1)
-    message.setMin(0, 0)
-    message.setMax(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"))
+    pass
 
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
@@ -37,8 +59,8 @@ def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
     layer = model.newLayer()
     layer.addAgentFunction("AddOffset", "AddOffset")
-    model.addInitFunction(init)
-    model.addExitFunction(exit1)
+    model.addInitFunction(initfn())
+    model.addExitFunction(exitfn())
 
 def initialise_simulation(seed):
     model = create_model()
