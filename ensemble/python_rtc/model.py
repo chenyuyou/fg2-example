@@ -72,32 +72,19 @@ def initialise_simulation(seed):
     cudaSimulation = pyflamegpu.CUDASimulation(model)
     cudaSimulation.initialise(sys.argv)
 
-#   设置可视化
-    if pyflamegpu.VISUALISATION:
-        m_vis = cudaSimulation.getVisualisation()
-#   设置相机所在位置和速度
-        INIT_CAM = env.getPropertyFloat("ENV_WIDTH")/2
-        m_vis.setInitialCameraTarget(INIT_CAM, INIT_CAM, 0)
-        m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, env.getPropertyFloat("ENV_WIDTH"))
-        m_vis.setCameraSpeed(0.01)
-        m_vis.setSimulationSpeed(25)
-#   将“point” agent添加到可视化中
-        point_agt = m_vis.addAgent("point")
-#   设置“point” agent的形状和大小
-        point_agt.setModel(pyflamegpu.ICOSPHERE)
-        point_agt.setModelScale(1/10.0)
-#   标记环境边界 
-        pen = m_vis.newPolylineSketch(1, 1, 1, 0.2)
-        pen.addVertex(0, 0, 0)
-        pen.addVertex(0, env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), 0, 0)
-        pen.addVertex(0, 0, 0)
-#   打开可视化窗口
-        m_vis.activate()
     
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
+        init_sum = 0
+        result_sum = 0
+        for i in range(100):
+            init = i/10
+            init_offset=1-1/50
+            init_sum +=init
+            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * init + init_offset * ((env.getPropertyUint("POPULATION_TO_GENERATE")-1)*env.getPropertyUint("POPULATION_TO_GENERATE")/2)
+            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * env.getPropertyUint("STEPS") * i
+        print("Ensemble init: {}, calculated init {}".format(atomic_init.load(), init_sum))
+        print("Ensemble result: {}, calculated result {}".format(atomic_result.load(), result_sum))
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
         population = pyflamegpu.AgentVector(model.Agent("point"), env.getPropertyUInt("AGENT_COUNT"))
@@ -108,9 +95,7 @@ def initialise_simulation(seed):
         cudaSimulation.setPopulationData(population)
     cudaSimulation.simulate()
 
-    if pyflamegpu.VISUALISATION:
-    # 模拟完成后保持可视化窗口处于活动状态
-        m_vis.join()
+
 
 if __name__ == "__main__":
     start=time.time()
