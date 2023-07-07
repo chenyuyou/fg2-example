@@ -81,6 +81,7 @@ def initialise_simulation(seed):
     cuda_ensemble = pyflamegpu.CUDAEnsemble(model, argc, argv)
     cuda_ensemble.simulate(runs)
 
+<<<<<<< HEAD
     init_sum = 0
     result_sum = 0
     for i in range(100):
@@ -94,6 +95,32 @@ def initialise_simulation(seed):
 
     pyflamegpu.cleanup()
 
+=======
+    
+#   如果未提供 xml 模型文件，则生成一个填充。
+    if not cudaSimulation.SimulationConfig().input_file:
+        init_sum = 0
+        result_sum = 0
+        for i in range(100):
+            init = i/10
+            init_offset=1-1/50
+            init_sum +=init
+            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * init + init_offset * ((env.getPropertyUint("POPULATION_TO_GENERATE")-1)*env.getPropertyUint("POPULATION_TO_GENERATE")/2)
+            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * env.getPropertyUint("STEPS") * i
+        print("Ensemble init: {}, calculated init {}".format(atomic_init.load(), init_sum))
+        print("Ensemble result: {}, calculated result {}".format(atomic_result.load(), result_sum))
+#   在空间内均匀分布agent，具有均匀分布的初始速度。
+        random.seed(cudaSimulation.SimulationConfig().random_seed)
+        population = pyflamegpu.AgentVector(model.Agent("point"), env.getPropertyUInt("AGENT_COUNT"))
+        for i in range(env.getPropertyUInt("AGENT_COUNT")):
+            instance = population[i]
+            instance.setVariableFloat("x",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
+            instance.setVariableFloat("y",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
+        cudaSimulation.setPopulationData(population)
+    cudaSimulation.simulate()
+
+
+>>>>>>> bf8cf516b832034c249ae8edb3ee69fe0416e3e9
 
 if __name__ == "__main__":
     start=time.time()
