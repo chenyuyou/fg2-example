@@ -1,6 +1,6 @@
 from pyflamegpu import *
 import time, sys, random
-from cuda import *
+#from cuda import *
 
 AddOffset = r"""
 FLAMEGPU_AGENT_FUNCTION(AddOffset, flamegpu::MessageNone, flamegpu::MessageNone) {
@@ -38,9 +38,9 @@ def define_environment(model):
     env = model.Environment()
     env.newPropertyUInt("POPULATION_TO_GENERATE", 100000, True)
     env.newPropertyUInt("STEPS", 10)
-    env.newPropertyUInt("init", 0)
-    env.newPropertyUInt("init_offset", 1)
-    env.newPropertyUInt("offset", 10)
+    env.newPropertyInt("init", 0)
+    env.newPropertyInt("init_offset", 1)
+    env.newPropertyInt("offset", 10)
     return env
 
 def define_messages(model, env):
@@ -58,17 +58,18 @@ def define_agents(model):
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
     layer = model.newLayer()
-    layer.addAgentFunction("AddOffset", "AddOffset")
+    layer.addAgentFunction("Agent","AddOffset")
     model.addInitFunction(initfn())
     model.addExitFunction(exitfn())
 
 def define_runs(model, env):
-    runs = pyflamegpu.RunPlanvector(model, 100)
+    runs = pyflamegpu.RunPlanVector(model, 100)
     runs.setSteps(env.getPropertyUInt("STEPS"))
     runs.setRandomSimulationSeed(12, 1)
     runs.setPropertyLerpRangeInt("init", 0, 9)
     runs.setPropertyLerpRangeInt("init_offset", 1, 0)
     runs.setPropertyLerpRangeInt("offset", 0, 99)
+    return runs
 
 def initialise_simulation(seed):
     model = create_model()
@@ -76,12 +77,11 @@ def initialise_simulation(seed):
     define_messages(model, env)
     define_agents(model)
     define_execution_order(model)
-    define_runs(model,env)
+    runs = define_runs(model,env)
 #   初始化cuda模拟
-    cuda_ensemble = pyflamegpu.CUDAEnsemble(model, argc, argv)
+    cuda_ensemble = pyflamegpu.CUDAEnsemble(model)
     cuda_ensemble.simulate(runs)
 
-<<<<<<< HEAD
     init_sum = 0
     result_sum = 0
     for i in range(100):
@@ -90,37 +90,11 @@ def initialise_simulation(seed):
         init_sum += init
         result_sum += env.getPropertyUInt("POPULATION_TO_GENERATE") * init + init_offset * ((env.getPropertyUInt("POPULATION_TO_GENERATE")-1)*env.getPropertyUInt("POPULATION_TO_GENERATE")/2)
         result_sum += env.getPropertyUInt("POPULATION_TO_GENERATE") * env.getPropertyUInt("STEPS") * i
-    print("Ensemble init: {}, calculated init {}".format(atomic_init.load(), init_sum))
-    print("Ensemble result: {}, calculated result {}".format(atomic_result.load(), result_sum))
+    print("Ensemble init: {}, calculated init {}".format(atomic_init, init_sum))
+    print("Ensemble result: {}, calculated result {}".format(atomic_result, result_sum))
 
     pyflamegpu.cleanup()
 
-=======
-    
-#   如果未提供 xml 模型文件，则生成一个填充。
-    if not cudaSimulation.SimulationConfig().input_file:
-        init_sum = 0
-        result_sum = 0
-        for i in range(100):
-            init = i/10
-            init_offset=1-1/50
-            init_sum +=init
-            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * init + init_offset * ((env.getPropertyUint("POPULATION_TO_GENERATE")-1)*env.getPropertyUint("POPULATION_TO_GENERATE")/2)
-            result_sum += env.getPropertyUint("POPULATION_TO_GENERATE") * env.getPropertyUint("STEPS") * i
-        print("Ensemble init: {}, calculated init {}".format(atomic_init.load(), init_sum))
-        print("Ensemble result: {}, calculated result {}".format(atomic_result.load(), result_sum))
-#   在空间内均匀分布agent，具有均匀分布的初始速度。
-        random.seed(cudaSimulation.SimulationConfig().random_seed)
-        population = pyflamegpu.AgentVector(model.Agent("point"), env.getPropertyUInt("AGENT_COUNT"))
-        for i in range(env.getPropertyUInt("AGENT_COUNT")):
-            instance = population[i]
-            instance.setVariableFloat("x",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
-            instance.setVariableFloat("y",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
-        cudaSimulation.setPopulationData(population)
-    cudaSimulation.simulate()
-
-
->>>>>>> bf8cf516b832034c249ae8edb3ee69fe0416e3e9
 
 if __name__ == "__main__":
     start=time.time()

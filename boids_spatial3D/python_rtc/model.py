@@ -27,8 +27,7 @@ def vec3Normalize(x, y, z):
 
 def main():
     model = pyflamegpu.ModelDescription("Boids Spatial3D (Python RTC)")
-
-
+    
     env = model.Environment()
 # Population size to generate, if no agents are loaded from disk
     env.newPropertyUInt("POPULATION_TO_GENERATE", 40000)
