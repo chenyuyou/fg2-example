@@ -1,4 +1,9 @@
 ## 更新：
+2023年7月10日
+diffusion模型添加了退出函数。
+
+完成了ensemble模型的python_rtc版本。
+
 
 2023年6月30日
 diffusion模型测速
