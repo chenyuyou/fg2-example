@@ -1,32 +1,38 @@
 from pyflamegpu import *
 import time, sys, random
-#from cuda import *
+from cuda import *
 
-AddOffset = r"""
-FLAMEGPU_AGENT_FUNCTION(AddOffset, flamegpu::MessageNone, flamegpu::MessageNone) {
-    // Output each agents publicly visible properties.
-    FLAMEGPU->setVariable<int>("x", FLAMEGPU->getVariable<int>("x") + FLAMEGPU->environment.getProperty<int>("offset"));
-    return flamegpu::ALIVE;
-}
-"""
 
 class initfn(pyflamegpu.HostFunction):
+
+#    def __init__(self):
+#        super().__init__()
+        
     def run(self, FLAMEGPU):
-        # Fetch the desired agent count and environment width
-        POPULATION_TO_GENERATE = FLAMEGPU.environment.getPropertyInt("POPULATION_TO_GENERATE")
+
+#        # Fetch the desired agent count and environment width
+        POPULATION_TO_GENERATE = FLAMEGPU.environment.getPropertyUInt("POPULATION_TO_GENERATE")
         Init = FLAMEGPU.environment.getPropertyInt("init")
         Init_offset = FLAMEGPU.environment.getPropertyInt("init_offset")
         # Create agents
         agent = FLAMEGPU.agent("Agent")
-        for i in range(POPULATION_TO_GENERATE):
+        for i in range(POPULATION_TO_GENERATE):            
             agent.newAgent().setVariableInt("x", Init + i * Init_offset)
 
-class exitfn(pyflamegpu.HostFunction):
-    def run(self, FLAMEGPU):
-        # Fetch the desired agent count and environment width
-        atomic_init += FLAMEGPU.environment.getPropertyInt("init")
-        atomic_result += FLAMEGPU.agent("Agent").sumInt("x")
+atomic_init=0
+atomic_result=0
 
+class exitfn(pyflamegpu.HostFunction):
+    def __init__(self):
+        super().__init__()
+        self.atomic_init = 0
+        self.atomic_result = 0
+
+    def run(self, FLAMEGPU):
+        self.atomic_init +=FLAMEGPU.environment.getPropertyInt("init")
+        self.atomic_result += FLAMEGPU.agent("Agent").sumInt("x")
+        atomic_init =self.atomic_init
+        atomic_result=self.atomic_result
 
 def create_model():
 #   创建模型，并且起名
@@ -39,8 +45,8 @@ def define_environment(model):
     env.newPropertyUInt("POPULATION_TO_GENERATE", 100000, True)
     env.newPropertyUInt("STEPS", 10)
     env.newPropertyInt("init", 0)
-    env.newPropertyInt("init_offset", 1)
-    env.newPropertyInt("offset", 10)
+    env.newPropertyInt("init_offset", 0)
+    env.newPropertyInt("offset", 1)
     return env
 
 def define_messages(model, env):
@@ -50,7 +56,7 @@ def define_messages(model, env):
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
     agent = model.newAgent("Agent")
-    agent.newVariableFloat("x")
+    agent.newVariableInt("x")
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
     agent.newRTCFunction("AddOffset", AddOffset)
 
