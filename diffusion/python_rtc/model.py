@@ -3,6 +3,14 @@ from pyflamegpu import *
 import sys, random, time
 from cuda import *
 
+class stable_temperature(pyflamegpu.HostCondition):        
+
+
+    def run(self, FLAMEGPU):
+#        # Fetch the desired agent count and environment width
+        sd = FLAMEGPU.agent("cell").meanStandardDeviationFloat("value")[1]
+        print(sd)
+        return pyflamegpu.EXIT if sd < 0.006 else pyflamegpu.CONTINUE
 
 def create_model():
 #   创建模型，并且起名
@@ -53,6 +61,7 @@ def define_execution_order(model):
     layer.addAgentFunction("cell","output")
     layer = model.newLayer()
     layer.addAgentFunction("cell","update")
+    model.addExitCondition(stable_temperature())
 
 def initialise_simulation(seed):
     model = create_model()
@@ -89,7 +98,7 @@ def initialise_simulation(seed):
         visualisation = cudaSimulation.getVisualisation()
         visualisation.setBeginPaused(True)
 #   设置相机所在位置和速度
-#        visualisation.setSimulationSpeed(5)
+        visualisation.setSimulationSpeed(250)
         visualisation.setInitialCameraLocation(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 450.0)
         visualisation.setInitialCameraTarget(env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, env.getPropertyUInt("SQRT_AGENT_COUNT") / 2.0, 0.0)
         visualisation.setCameraSpeed(0.001 * env.getPropertyUInt("SQRT_AGENT_COUNT"))

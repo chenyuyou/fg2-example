@@ -3,13 +3,8 @@ import time, sys, random
 from cuda import *
 
 
-class initfn(pyflamegpu.HostFunction):
-
-#    def __init__(self):
-#        super().__init__()
-        
+class initfn(pyflamegpu.HostFunction):        
     def run(self, FLAMEGPU):
-
 #        # Fetch the desired agent count and environment width
         POPULATION_TO_GENERATE = FLAMEGPU.environment.getPropertyUInt("POPULATION_TO_GENERATE")
         Init = FLAMEGPU.environment.getPropertyInt("init")

@@ -100,7 +100,7 @@ int main(int argc, const char ** argv) {
         flamegpu::LayerDescription layer = model.newLayer();
         layer.addAgentFunction(update);
     }
-//    model.addExitCondition(stable_temperature);
+    model.addExitCondition(stable_temperature);
 //    flamegpu::util::nvtx::pop();
 
     /**
@@ -143,7 +143,7 @@ int main(int argc, const char ** argv) {
     flamegpu::visualiser::ModelVis visualisation = cudaSimulation.getVisualisation();
     {
         visualisation.setBeginPaused(true);
-//        visualisation.setSimulationSpeed(5);
+        visualisation.setSimulationSpeed(5);
         visualisation.setInitialCameraLocation(SQRT_AGENT_COUNT / 2.0f, SQRT_AGENT_COUNT / 2.0f, 450.0f);
         visualisation.setInitialCameraTarget(SQRT_AGENT_COUNT / 2.0f, SQRT_AGENT_COUNT / 2.0f, 0.0f);
         visualisation.setCameraSpeed(0.001f * SQRT_AGENT_COUNT);
