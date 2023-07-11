@@ -4,12 +4,9 @@ import sys, random, time
 from cuda import *
 
 class stable_temperature(pyflamegpu.HostCondition):        
-
-
     def run(self, FLAMEGPU):
 #        # Fetch the desired agent count and environment width
         sd = FLAMEGPU.agent("cell").meanStandardDeviationFloat("value")[1]
-        print(sd)
         return pyflamegpu.EXIT if sd < 0.006 else pyflamegpu.CONTINUE
 
 def create_model():
@@ -84,6 +81,7 @@ def initialise_simulation(seed):
         for x in range(env.getPropertyUInt("SQRT_AGENT_COUNT")):
             for y in range(env.getPropertyUInt("SQRT_AGENT_COUNT")):
                 init_pop.push_back()
+#                init_pop.append(None)
                 instance = init_pop.back()
                 instance.setVariableArrayUInt("pos", (x,y))      
                 instance.setVariableFloat("value", random.uniform(0.0, 1.0))                

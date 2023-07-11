@@ -30,28 +30,8 @@ class initfn(pyflamegpu.HostCondition):
         iterations = 0
         return pyflamegpu.EXIT
 
-def create_model():
-#   创建模型，并且起名
-    model = pyflamegpu.ModelDescription("Circles Spatial2D")
-    return model
 
-def define_environment(model):
-#   创建环境，给出一些不受模型影响的外生变量
-    env = model.Environment()
-    env.newPropertyUInt("AGENT_COUNT", 16384)
-    env.newPropertyFloat("ENV_WIDTH", int(env.getPropertyUInt("AGENT_COUNT")**(1/3)))  
-    env.newPropertyFloat("repulse", 0.05)
-    return env
-
-def define_messages(model, env):
-#   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
-    message = model.newMessageSpatial2D("location")
-    message.newVariableID("id")
-    message.setRadius(1)
-    message.setMin(0, 0)
-    message.setMax(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"))
-
-def define_agents(model):
+def makeCoreAgent(model):
 #   创建agent，名为point，是agent自己的变量和函数。
     agent = model.newAgent("agent")
     agent.newVariableArrayUInt("pos",2)
@@ -68,68 +48,166 @@ def define_agents(model):
         agent.newVariableFloat("x")
         agent.newVariableFloat("y")
 
-    agent.newRTCFunction("output_message", metabolise_and_growback)
-    agent.newRTCFunction("output_cell_status", output_cell_status).setMessageOutput("output_cell_status_message")
-    agent.newRTCFunction("input_message", input_message).setMessageInput("location")
-
+#    agent.newRTCFunction("output_message", metabolise_and_growback)
+#    agent.newRTCFunction("output_cell_status", output_cell_status).setMessageOutput("output_cell_status_message")
+#    agent.newRTCFunction("input_message", input_message).setMessageInput("location")
     return agent
 
+def create_submodel():
+#   创建模型，并且起名
+    submodel = pyflamegpu.ModelDescription("Movement_model")
+    return submodel
+
+
+
+def define_sub_messages(model):
+#   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
+    message = model.newMessageSpatial2D("cell_status")
+    message.newVariableID("location_id")
+    message.newVariableInt("status")
+    message.newVariableInt("env_sugar_level")
+    message.setDimensions(GRID_WIDTH, GRID_HEIGHT)
+    
+    message = model.newMessageArray2D("movement_request")
+    message.newVariableInt("agent_id")
+    message.newVariableID("location_id")
+    message.newVariableInt("sugar_level")
+    message.newVariableInt("metabolism")
+    message.setDimensions(GRID_WIDTH, GRID_HEIGHT)
+
+    message = model.newMessageArray2D("movement_response")
+    message.newVariableID("location_id")
+    message.newVariableInt("agent_id")
+    message.setDimensions(GRID_WIDTH, GRID_HEIGHT)
+
+def define_messages(model):
+    pass
+
 def define_execution_order(model):
+    pass
+
+def define_sub_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
     layer = model.newLayer()
     layer.addAgentFunction("point", "output_message")
     layer = model.newLayer()
     layer.addAgentFunction("point", "input_message")
 
+
+
 def initialise_simulation(seed):
-    model = create_model()
-    env = define_environment(model)
-    define_messages(model, env)
+    submodel = create_submodel()    
+    define_sub_messages(submodel)
+    agent = makeCoreAgent(submodel)
+    
     define_agents(model)
     define_execution_order(model)
+
+
+
+
+
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-    cudaSimulation.initialise(sys.argv)
 
 #   设置可视化
     if pyflamegpu.VISUALISATION:
-        m_vis = cudaSimulation.getVisualisation()
-#   设置相机所在位置和速度
-        INIT_CAM = env.getPropertyFloat("ENV_WIDTH")/2
-        m_vis.setInitialCameraTarget(INIT_CAM, INIT_CAM, 0)
-        m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, env.getPropertyFloat("ENV_WIDTH"))
-        m_vis.setCameraSpeed(0.01)
-        m_vis.setSimulationSpeed(25)
+        visualisation = cudaSimulation.getVisualisation()
+
+        visualisation.setInitialCameraLocation(GRID_WIDTH / 2.0, GRID_HEIGHT / 2.0, 225.0)
+        visualisation.setInitialCameraTarget(GRID_WIDTH / 2.0, GRID_HEIGHT /2.0, 0.0)
+        visualisation.setCameraSpeed(0.001 * GRID_WIDTH)
+        visualisation.setViewClips(0.1, 5000)
 #   将“point” agent添加到可视化中
-        point_agt = m_vis.addAgent("point")
+        agt = visualisation.addAgent("agent")
 #   设置“point” agent的形状和大小
-        point_agt.setModel(pyflamegpu.ICOSPHERE)
-        point_agt.setModelScale(1/10.0)
-#   标记环境边界 
-        pen = m_vis.newPolylineSketch(1, 1, 1, 0.2)
-        pen.addVertex(0, 0, 0)
-        pen.addVertex(0, env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), env.getPropertyFloat("ENV_WIDTH"), 0)
-        pen.addVertex(env.getPropertyFloat("ENV_WIDTH"), 0, 0)
-        pen.addVertex(0, 0, 0)
-#   打开可视化窗口
-        m_vis.activate()
-    
+        agt.setModel(pyflamegpu.CUBE)
+        agt.setModelScale(1.0)
+        if VIS_MODE == 0:
+            cell_colors = pyflamegpu.iDiscreteColor("status", pyflamegpu.Color("#666"))
+            cell_colors[AGENT_STATUS_UNOCCUPIED] = pyflamegpu.RED
+            cell_colors[AGENT_STATUS_OCCUPIED] = pyflamegpu.GREEN
+            cell_colors[AGENT_STATUS_MOVEMENT_REQUESTED] = pyflamegpu.BLUE
+            cell_colors[AGENT_STATUS_MOVEMENT_UNRESOLVED] = pyflamegpu.WHITE
+        else:
+            cell_colors = pyflamegpu.iDiscreteColor("env_sugar_level", pyflamegpu.Viridis(SUGAR_MAX_CAPACITY + 1), flamegpu.Color("#f00"))
+            agt.setColor(cell_colors)
+        visualisation.activate()
+
+
+
+    cudaSimulation.initialise(sys.argv)
 #   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
-        population = pyflamegpu.AgentVector(model.Agent("point"), env.getPropertyUInt("AGENT_COUNT"))
-        for i in range(env.getPropertyUInt("AGENT_COUNT")):
-            instance = population[i]
-            instance.setVariableFloat("x",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
-            instance.setVariableFloat("y",  random.uniform(0.0, env.getPropertyFloat("ENV_WIDTH")))
-        cudaSimulation.setPopulationData(population)
-    cudaSimulation.simulate()
+        sugar_hotspots = []
+        width_dist = random.randint(0, GRID_WIDTH - 1)
+        height_dist = random.randint(0, GRID_HEIGHT - 1)
+        ## Each sugar hotspot has a radius of 3-15 blocks
+        radius_dist = random.randint(5, 30)
+        ## Hostpot area should cover around 50% of the map
+        hotspot_area = 0
+        while hotspot_area < GRID_WIDTH * GRID_HEIGHT:
+            rad = radius_dist
+            hs = [width_dist, height_dist, rad, SUGAR_MAX_CAPACITY]
+            ugar_hotspots.push_back(hs)
+            hotspot_area += math.pi * rad * rad
 
+        CELL_COUNT = GRID_WIDTH * GRID_HEIGHT
+        normal = random.uniform(0, 1)
+        agent_sugar_dist = random.randint(0, SUGAR_MAX_CAPACITY * 2)
+        poor_env_sugar_dist = random.randint(0, SUGAR_MAX_CAPACITY/2)
+        i = 0
+        agent_id = 0
+        init_pop = pyflamegpu.AgentVector(model.Agent("agent"))
+        init_pop.reserve(CELL_COUNT)
+        for x in range(GRID_WIDTH):
+            for y in range(GRID_HEIGHT):
+                instance = init_pop[i]
+                instance.setVariable("pos", [x, y])
+                i += 1
+                if random.uniform(0, 1)<0.1:
+                    instance.setVariableInt("agent_id", agent_id)
+                    agent_id += 1
+                    instance.setVariableInt("status", AGENT_STATUS_OCCUPIED)
+                    instance.setVariableInt("sugar_level", agent_sugar_dist(rng) // 2)
+                    instance.setVariableInt("metabolism", 6)
+                else:
+                    instance.setVariable("agent_id", -1)
+                    instance.setVariable("status", AGENT_STATUS_UNOCCUPIED)
+                    instance.setVariable("sugar_level", 0)
+                    instance.setVariable("metabolism", 0)
+                env_sugar_lvl = 0
+                hotspot_core_size = 5
+                for hs in sugar_hotspots:
+                    hs_x = int(hs[0])
+                    hs_y = int(hs[1])
+                    hs_rad = hs[2]
+                    hs_level = hs[3]
+                    hs_dist = float(((hs_x - x) ** 2 + (hs_y - y) ** 2) ** 0.5)
+                    if hs_dist <= hotspot_core_size:
+                        t = hs_level
+                        env_sugar_lvl = max(t, env_sugar_lvl)
+                    elif hs_dist <= hs_rad:
+                        non_core_len = hs_rad - hotspot_core_size
+                        dist_from_core = hs_dist - hotspot_core_size
+                        t = int(hs_level * (non_core_len - dist_from_core) / non_core_len)
+                        env_sugar_lvl = max(t, env_sugar_lvl)
+                env_sugar_lvl = poor_env_sugar_dist(rng) if env_sugar_lvl < SUGAR_MAX_CAPACITY / 2 else env_sugar_lvl
+                instance.setVariable("env_max_sugar_level", env_sugar_lvl)
+                instance.setVariable("env_sugar_level", env_sugar_lvl)
+                if pyflamegpu.VISUALISATION:
+                    instance.setVariable("x", float(x))
+                    instance.setVariable("y", float(y))
+        
+        cudaSimulation.setPopulationData(init_pop)
+    cudaSimulation.simulate()
     if pyflamegpu.VISUALISATION:
-    # 模拟完成后保持可视化窗口处于活动状态
-        m_vis.join()
+        visualisation.join()
+    pyflamegpu.cleanup()
+
+
 
 if __name__ == "__main__":
     start=time.time()

@@ -230,8 +230,8 @@ flamegpu::AgentDescription makeCoreAgent(flamegpu::ModelDescription &model) {
     return agent;
 }
 int main(int argc, const char ** argv) {
-    flamegpu::util::nvtx::Range range{"main"};
-    flamegpu::util::nvtx::push("ModelDescription");
+//    flamegpu::util::nvtx::Range range{"main"};
+//    flamegpu::util::nvtx::push("ModelDescription");
     flamegpu::ModelDescription submodel("Movement_model");
     {  // Define sub model for conflict resolution
         /**
@@ -475,7 +475,7 @@ int main(int argc, const char ** argv) {
         }
         cudaSimulation.setPopulationData(init_pop);
     }
-    flamegpu::util::nvtx::pop();
+//    flamegpu::util::nvtx::pop();
 
     /**
      * Execution
