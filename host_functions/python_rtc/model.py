@@ -13,16 +13,29 @@ class init_function(pyflamegpu.HostFunction):
         min_x = agent.minFloat("x")
         max_x = agent.maxFlout("x")        
         print("Init Function! (AgentCount: {}, Min: {}, Max: {})".format(FLAMEGPU.agent("agent").count(), min_x, max_x))
-        for i in range(AGENT_COUNT/):
+        for i in range(AGENT_COUNT/2):
             instance = agent.newAgent()
             instance.setVariableFloat("x",  float(i))
             instance.setVariableInt("y", 1 if i % 2 == 0 else 0)
 
-def customSum(a, b):
-    return a + b
 
-def customTransform(a):
-    return if a == 0 or a == 1 else 0
+class customSum(pyflamegpu.HostAgentAPI):
+    def __init__(self,a,b):
+        super().__init__()
+        self.a=a
+        self.b=b
+
+    def run(self):
+        return self.a+self.b
+
+class customTransform(pyflamegpu.HostAgentAPI):
+    def __init__(self,a):
+        super().__init__()
+        self.a=a
+
+    def run(self):
+        return 1 if self.a == 0 or self.a == 1 else 0
+
 
 
 class step_function(pyflamegpu.HostFunction):
@@ -55,9 +68,9 @@ class exit_condition(pyflamegpu.HostFunction):
         print("Exit Condition! (Rolled: {})".format(uniform_real))
         if uniform_real < CHANCE:
             print("Rolled number is less than {}, exiting!".format(CHANCE))
-            return flamegpu.EXIT
+            return pyflamegpu.EXIT
         else:
-            return flamegpu.CONTINUE
+            return pyflamegpu.CONTINUE
 
 def create_model():
 #   创建模型，并且起名

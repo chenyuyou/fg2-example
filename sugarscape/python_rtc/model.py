@@ -2,6 +2,34 @@ from pyflamegpu import *
 import time, sys, random
 from cuda import *
 
+## Grid Size (the product of these is the agent count)
+GRID_WIDTH = 256
+GRID_HEIGHT = 256
+
+## Agent state variables
+AGENT_STATUS_UNOCCUPIED = 0
+AGENT_STATUS_OCCUPIED = 1
+AGENT_STATUS_MOVEMENT_REQUESTED = 2
+AGENT_STATUS_MOVEMENT_UNRESOLVED = 3
+
+## Growback variables
+SUGAR_GROWBACK_RATE = 1
+SUGAR_MAX_CAPACITY  = 7
+
+## Visualisation mode (0=occupied/move status, 1=occupied/sugar/level)
+VIS_MODE = 1
+
+class initfn(pyflamegpu.HostCondition):        
+    def run(self, FLAMEGPU):
+        iterations = 0
+        iterations += 1
+        if iterations < 9:
+    # Agent movements still unresolved
+            if FLAMEGPU.agent("agent").count("status", AGENT_STATUS_MOVEMENT_UNRESOLVED):
+                return pyflamegpu.CONTINU
+        iterations = 0
+        return pyflamegpu.EXIT
+
 def create_model():
 #   创建模型，并且起名
     model = pyflamegpu.ModelDescription("Circles Spatial2D")
@@ -25,16 +53,26 @@ def define_messages(model, env):
 
 def define_agents(model):
 #   创建agent，名为point，是agent自己的变量和函数。
-    agent = model.newAgent("point")
-    agent.newVariableFloat("x")
-    agent.newVariableFloat("y")
-    agent.newVariableFloat("z")
-    agent.newVariableFloat("drift", 0)
-#   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
-    out_fn = agent.newRTCFunction("output_message", output_message)
-    out_fn.setMessageOutput("location")
-    in_fn = agent.newRTCFunction("input_message", input_message)
-    in_fn.setMessageInput("location")
+    agent = model.newAgent("agent")
+    agent.newVariableArrayUInt("pos",2)
+    agent.newVariableInt("agent_id")
+    agent.newVariableInt("status")
+    ## agent specific variables
+    agent.newVariableInt("sugar_level")
+    agent.newVariableInt("metabolism")
+    ## environment specific var
+    agent.newVariableInt("env_sugar_level")
+    agent.newVariableInt("env_max_sugar_level")
+    if pyflamegpu.VISUALISATION:
+    ## Redundant seperate floating point position vars for vis
+        agent.newVariableFloat("x")
+        agent.newVariableFloat("y")
+
+    agent.newRTCFunction("output_message", metabolise_and_growback)
+    agent.newRTCFunction("output_cell_status", output_cell_status).setMessageOutput("output_cell_status_message")
+    agent.newRTCFunction("input_message", input_message).setMessageInput("location")
+
+    return agent
 
 def define_execution_order(model):
 #   引入层主要目的是确定agent行动的顺序。
