@@ -5,7 +5,7 @@ FLAMEGPU_AGENT_FUNCTION(metabolise_and_growback, flamegpu::MessageNone, flamegpu
     int env_max_sugar_level = FLAMEGPU->getVariable<int>("env_max_sugar_level");
     int status = FLAMEGPU->getVariable<int>("status");
     // metabolise if occupied
-    if (status == AGENT_STATUS_OCCUPIED || status == AGENT_STATUS_MOVEMENT_UNRESOLVED) {
+    if (status == 1 || status == 3) {
         // store any sugar present in the cell
         if (env_sugar_level > 0) {
             sugar_level += env_sugar_level;
@@ -18,7 +18,7 @@ FLAMEGPU_AGENT_FUNCTION(metabolise_and_growback, flamegpu::MessageNone, flamegpu
 
         // check if agent dies
         if (sugar_level == 0) {
-            status = AGENT_STATUS_UNOCCUPIED;
+            status = 0;
             FLAMEGPU->setVariable<int>("agent_id", -1);
             env_sugar_level = 0;
             FLAMEGPU->setVariable<int>("metabolism", 0);
@@ -26,16 +26,16 @@ FLAMEGPU_AGENT_FUNCTION(metabolise_and_growback, flamegpu::MessageNone, flamegpu
     }
 
     // growback if unoccupied
-    if (status == AGENT_STATUS_UNOCCUPIED) {
-        env_sugar_level += SUGAR_GROWBACK_RATE;
+    if (status == 0) {
+        env_sugar_level += 1;
         if (env_sugar_level > env_max_sugar_level) {
             env_sugar_level = env_max_sugar_level;
         }
     }
 
     // set all active agents to unresolved as they may now want to move
-    if (status == AGENT_STATUS_OCCUPIED) {
-        status = AGENT_STATUS_MOVEMENT_UNRESOLVED;
+    if (status == 1) {
+        status = 3;
     }
     FLAMEGPU->setVariable<int>("sugar_level", sugar_level);
     FLAMEGPU->setVariable<int>("env_sugar_level", env_sugar_level);
@@ -71,10 +71,10 @@ FLAMEGPU_AGENT_FUNCTION(movement_request, flamegpu::MessageArray2D, flamegpu::Me
     unsigned int agent_y = FLAMEGPU->getVariable<unsigned int, 2>("pos", 1);
 
     // if occupied then look for empty cells
-    if (status == AGENT_STATUS_MOVEMENT_UNRESOLVED) {
+    if (status == 3) {
         for (auto current_message : FLAMEGPU->message_in.wrap(agent_x, agent_y)) {
             // if location is unoccupied then check for empty locations
-            if (current_message.getVariable<int>("status") == AGENT_STATUS_UNOCCUPIED) {
+            if (current_message.getVariable<int>("status") == 0) {
                 // if the sugar level at current location is better than currently stored then update
                 int message_env_sugar_level = current_message.getVariable<int>("env_sugar_level");
                 float message_priority = FLAMEGPU->random.uniform<float>();
@@ -89,7 +89,7 @@ FLAMEGPU_AGENT_FUNCTION(movement_request, flamegpu::MessageArray2D, flamegpu::Me
 
         // if the agent has found a better location to move to then update its state
         // if there is a better location to move to then state indicates a movement request
-        status = best_location_id != flamegpu::ID_NOT_SET ? AGENT_STATUS_MOVEMENT_REQUESTED : AGENT_STATUS_OCCUPIED;
+        status = best_location_id != flamegpu::ID_NOT_SET ? 2: 1;
         FLAMEGPU->setVariable<int>("status", status);
     }
 
@@ -118,7 +118,7 @@ FLAMEGPU_AGENT_FUNCTION(movement_response, flamegpu::MessageArray2D, flamegpu::M
 
     for (auto current_message : FLAMEGPU->message_in.wrap(agent_x, agent_y)) {
         // if the location is unoccupied then check for agents requesting to move here
-        if (status == AGENT_STATUS_UNOCCUPIED) {
+        if (status == 0) {
             // check if request is to move to this location
             if (current_message.getVariable<flamegpu::id_t>("location_id") == location_id) {
                 // check the priority and maintain the best ranked agent
@@ -132,8 +132,8 @@ FLAMEGPU_AGENT_FUNCTION(movement_response, flamegpu::MessageArray2D, flamegpu::M
     }
 
     // if the location is unoccupied and an agent wants to move here then do so and send a response
-    if ((status == AGENT_STATUS_UNOCCUPIED) && (best_request_id >= 0))    {
-        FLAMEGPU->setVariable<int>("status", AGENT_STATUS_OCCUPIED);
+    if ((status == 0) && (best_request_id >= 0))    {
+        FLAMEGPU->setVariable<int>("status", 1);
         // move the agent to here and consume the cell's sugar
         best_request_sugar_level += FLAMEGPU->getVariable<int>("env_sugar_level");
         FLAMEGPU->setVariable<int>("agent_id", best_request_id);
@@ -159,10 +159,10 @@ FLAMEGPU_AGENT_FUNCTION(movement_transaction, flamegpu::MessageArray2D, flamegpu
 
     for (auto current_message : FLAMEGPU->message_in.wrap(agent_x, agent_y)) {
         // if location contains an agent wanting to move then look for responses allowing relocation
-        if (status == AGENT_STATUS_MOVEMENT_REQUESTED) {  // if the movement response request came from this location
+        if (status == 2) {  // if the movement response request came from this location
             if (current_message.getVariable<int>("agent_id") == agent_id) {
                 // remove the agent and reset agent specific variables as it has now moved
-                status = AGENT_STATUS_UNOCCUPIED;
+                status = 0;
                 FLAMEGPU->setVariable<int>("agent_id", -1);
                 FLAMEGPU->setVariable<int>("sugar_level", 0);
                 FLAMEGPU->setVariable<int>("metabolism", 0);
@@ -172,8 +172,8 @@ FLAMEGPU_AGENT_FUNCTION(movement_transaction, flamegpu::MessageArray2D, flamegpu
     }
 
     // if request has not been responded to then agent is unresolved
-    if (status == AGENT_STATUS_MOVEMENT_REQUESTED) {
-        status = AGENT_STATUS_MOVEMENT_UNRESOLVED;
+    if (status == 2) {
+        status = 3;
     }
 
     FLAMEGPU->setVariable<int>("status", status);
