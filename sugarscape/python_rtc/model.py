@@ -6,7 +6,10 @@ from cuda import *
 GRID_WIDTH = 256
 GRID_HEIGHT = 256
 
-
+AGENT_STATUS_UNOCCUPIED = 0
+AGENT_STATUS_OCCUPIED = 1
+AGENT_STATUS_MOVEMENT_REQUESTED = 2
+AGENT_STATUS_MOVEMENT_UNRESOLVED = 3
 
 ## Growback variables
 SUGAR_GROWBACK_RATE = 1
@@ -21,8 +24,8 @@ class MovementExitCondition(pyflamegpu.HostCondition):
         iterations += 1
         if iterations < 9:
     # Agent movements still unresolved
-            if FLAMEGPU.agent("agent").count("status", 3):
-                return pyflamegpu.CONTINU
+            if FLAMEGPU.agent("agent").countInt("status", AGENT_STATUS_MOVEMENT_UNRESOLVED):
+                return pyflamegpu.CONTINUE
         iterations = 0
         return pyflamegpu.EXIT
 
@@ -145,10 +148,10 @@ def initialise_simulation(seed):
         agt.setModelScale(1.0)
         if VIS_MODE == 0:
             cell_colors = pyflamegpu.iDiscreteColor("status", pyflamegpu.Color("#666"))
-            cell_colors[0] = pyflamegpu.RED
-            cell_colors[1] = pyflamegpu.GREEN
-            cell_colors[2] = pyflamegpu.BLUE
-            cell_colors[3] = pyflamegpu.WHITE
+            cell_colors[AGENT_STATUS_UNOCCUPIED] = pyflamegpu.RED
+            cell_colors[AGENT_STATUS_OCCUPIED] = pyflamegpu.GREEN
+            cell_colors[AGENT_STATUS_MOVEMENT_REQUESTED] = pyflamegpu.BLUE
+            cell_colors[AGENT_STATUS_MOVEMENT_UNRESOLVED] = pyflamegpu.WHITE
         else:
             cell_colors = pyflamegpu.iDiscreteColor("env_sugar_level", pyflamegpu.Viridis(SUGAR_MAX_CAPACITY + 1), pyflamegpu.Color("#f00"))
             agt.setColor(cell_colors)
@@ -176,7 +179,7 @@ def initialise_simulation(seed):
             hotspot_area += math.pi * rad * rad
 
         CELL_COUNT = GRID_WIDTH * GRID_HEIGHT
-        normal = random.uniform(0, 1)
+        
         agent_sugar_dist = random.randint(0, SUGAR_MAX_CAPACITY * 2)
         poor_env_sugar_dist = random.randint(0, int(SUGAR_MAX_CAPACITY/2))
         i = 0
@@ -188,15 +191,16 @@ def initialise_simulation(seed):
                 instance = init_pop[i]
                 instance.setVariableArrayUInt("pos", [x, y])
                 i += 1
+#                if normal<0.1:
                 if random.uniform(0, 1)<0.1:
                     instance.setVariableInt("agent_id", agent_id)
                     agent_id += 1
-                    instance.setVariableInt("status", 2)
+                    instance.setVariableInt("status", AGENT_STATUS_OCCUPIED)
                     instance.setVariableInt("sugar_level", int(agent_sugar_dist / 2))
                     instance.setVariableInt("metabolism", 6)
                 else:
                     instance.setVariableInt("agent_id", -1)
-                    instance.setVariableInt("status", 0)
+                    instance.setVariableInt("status", AGENT_STATUS_UNOCCUPIED)
                     instance.setVariableInt("sugar_level", 0)
                     instance.setVariableInt("metabolism", 0)
                 env_sugar_lvl = 0
@@ -209,13 +213,13 @@ def initialise_simulation(seed):
                     hs_dist = float(((hs_x - x) ** 2 + (hs_y - y) ** 2) ** 0.5)
                     if hs_dist <= hotspot_core_size:
                         t = hs_level
-                        env_sugar_lvl = max(t, env_sugar_lvl)
+                        env_sugar_lvl = t if t > env_sugar_lvl else env_sugar_lvl
                     elif hs_dist <= hs_rad:
                         non_core_len = hs_rad - hotspot_core_size
                         dist_from_core = hs_dist - hotspot_core_size
                         t = int(hs_level * (non_core_len - dist_from_core) / non_core_len)
-                        env_sugar_lvl = max(t, env_sugar_lvl)
-                env_sugar_lvl = poor_env_sugar_dist if env_sugar_lvl < SUGAR_MAX_CAPACITY / 2 else env_sugar_lvl
+                        env_sugar_lvl = t if t > env_sugar_lvl else env_sugar_lvl
+                env_sugar_lvl = poor_env_sugar_dist if env_sugar_lvl < (SUGAR_MAX_CAPACITY / 2) else env_sugar_lvl
                 instance.setVariableInt("env_max_sugar_level", env_sugar_lvl)
                 instance.setVariableInt("env_sugar_level", env_sugar_lvl)
                 if pyflamegpu.VISUALISATION:
