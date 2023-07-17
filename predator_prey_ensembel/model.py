@@ -210,7 +210,7 @@ def define_execution_order(model):
 def define_runs(model):
     ## 设置为要测试的参数。
     runs = pyflamegpu.RunPlanVector(model, 5)
-    runs.setSteps(100)
+    runs.setSteps(100000)
     runs.setRandomSimulationSeed(12, 1)
 
 #    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
@@ -307,15 +307,6 @@ def initialise_simulation(seed):
     define_output(ensembleSimulation)
     ensembleSimulation.setStepLog(logs)
     ensembleSimulation.simulate(runs)
-
-
-
-
-	
-
-   
-
-
 
 
 if __name__ == "__main__":

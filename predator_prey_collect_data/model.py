@@ -1,5 +1,5 @@
 import pyflamegpu
-import sys, random, math
+import sys, random, math, time
 import matplotlib.pyplot as plt
 from cuda import *
 
@@ -13,6 +13,9 @@ def define_environment(model):
     """
     env = model.Environment()
 
+    env.newPropertyUInt("num_prey", 200)
+    env.newPropertyUInt("num_predators", 50)
+    env.newPropertyUInt("num_grass", 0)
     # Reproduction
     env.newPropertyFloat("REPRODUCE_PREY_PROB", 0.05)
     env.newPropertyFloat("REPRODUCE_PRED_PROB", 0.03)
@@ -167,41 +170,6 @@ def define_agents(model):
 
     fn = agent.newRTCFunction("grass_growth", grass_growth)
 
-
-
-class population_tracker(pyflamegpu.HostFunction):
-    def __init__(self, has_grass):
-        super().__init__();  # Mandatory if we are defining __init__ ourselves
-        # Local, so value is maintained between calls to calculate_convergence::run
-        self.pred_count = []
-        self.prey_count = []
-        self.grass_count = []
-        self.has_grass = has_grass
-
-    def run(self, FLAMEGPU):
-        # Reduce force and overlap
-        self.pred_count.append(FLAMEGPU.agent("predator").count())
-        self.prey_count.append(FLAMEGPU.agent("prey").count())
-        if (self.has_grass):
-            self.grass_count.append(FLAMEGPU.agent("grass").countInt("available", 1))
-        else:
-            self.grass_count.append(0)
-
-    def plot(self):
-        plt.figure(figsize=(16,10))
-        plt.rcParams.update({'font.size': 18})
-        plt.xlabel("Step")
-        plt.ylabel("Population")
-        plt.plot(range(0, len(self.pred_count)), self.pred_count, 'r', label="Predators")
-        plt.plot(range(0, len(self.prey_count)), self.prey_count, 'b', label="Prey")
-        plt.plot(range(0, len(self.grass_count)), self.grass_count, 'g', label="Grass")
-        plt.legend()
-        plt.show()
-
-    def reset(self):
-        self.pred_count = []
-        self.prey_count = []
-        self.grass_count = []
         
 def define_execution_order(model):
     """
@@ -237,88 +205,103 @@ def define_execution_order(model):
     layer.addAgentFunction("prey", "prey_reproduction")
     layer.addAgentFunction("grass", "grass_growth")
 
-def initialise_simulation(num_prey, num_predators, num_grass, seed):
+    model.addInitFunction(initfn())
+
+def define_runs(model):
+    ## 设置为要测试的参数。
+    runs = pyflamegpu.RunPlan(model)
+    runs.setSteps(100)
+    runs.setRandomSimulationSeed(12)
+
+#    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
+#    runs.setPropertyLerpRangeFloat("REPRODUCE_PRED_PROB", 0.03, 1.03)
+#    runs.setPropertyLerpRangeFloat("SAME_SPECIES_AVOIDANCE_RADIUS", 0.035, 0.135)
+#    runs.setPropertyLerpRangeFloat("PREY_GROUP_COHESION_RADIUS", 0.2, 20.2)
+#    runs.setPropertyLerpRangeFloat("PRED_PREY_INTERACTION_RADIUS", 0.3, 30.3)
+#    runs.setPropertyLerpRangeFloat("PRED_SPEED_ADVANTAGE", 3, 303)
+#    runs.setPropertyLerpRangeFloat("PRED_KILL_DISTANCE", 0.05, 5.05)
+#    runs.setPropertyLerpRangeFloat("GRASS_EAT_DISTANCE", 0.02, 2.02)
+#    runs.setPropertyLerpRangeFloat("DELTA_TIME", 0.001, 0.101)
+
+#    runs.setPropertyLerpRangeUInt("GAIN_FROM_FOOD_PREY", 80, 90)
+#    runs.setPropertyLerpRangeUInt("GAIN_FROM_FOOD_PREDATOR", 100, 110)
+#    runs.setPropertyLerpRangeUInt("GRASS_REGROW_CYCLES", 100, 110)
+    return runs
+
+def define_logs(model):
+    log = pyflamegpu.StepLoggingConfig(model)
+    log.setFrequency(1)
+#    log.logEnvironment("REPRODUCE_PREY_PROB")
+#    log.logEnvironment("REPRODUCE_PRED_PROB")
+#    log.logEnvironment("SAME_SPECIES_AVOIDANCE_RADIUS")
+#    log.logEnvironment("PREY_GROUP_COHESION_RADIUS")
+#    log.logEnvironment("PRED_PREY_INTERACTION_RADIUS")
+#    log.logEnvironment("PRED_SPEED_ADVANTAGE")
+#    log.logEnvironment("PRED_KILL_DISTANCE")
+#    log.logEnvironment("GRASS_EAT_DISTANCE")
+#    log.logEnvironment("DELTA_TIME")
+#    log.logEnvironment("GAIN_FROM_FOOD_PREY")
+#    log.logEnvironment("GAIN_FROM_FOOD_PREDATOR")
+#    log.logEnvironment("GRASS_REGROW_CYCLES")
+    log.agent("prey").logCount()
+    log.agent("predator").logCount()
+    log.agent("grass").logCount()
+    return log
+
+class initfn(pyflamegpu.HostFunction):        
+    def run(self, FLAMEGPU):
+        num_prey = FLAMEGPU.environment.getPropertyUInt("num_prey")
+        num_predators = FLAMEGPU.environment.getPropertyUInt("num_predators")
+        num_grass = FLAMEGPU.environment.getPropertyUInt("num_grass")
+
+        prey = FLAMEGPU.agent("prey")
+        for i in range(num_prey):            
+            prey.newAgent().setVariableFloat("x",  random.uniform(-1.0, 1.0))
+            prey.newAgent().setVariableFloat("y",  random.uniform(-1.0, 1.0))
+            prey.newAgent().setVariableFloat("vx",  random.uniform(-1.0, 1.0))
+            prey.newAgent().setVariableFloat("vy",  random.uniform(-1.0, 1.0))
+            prey.newAgent().setVariableFloat("steer_x",  0.0)
+            prey.newAgent().setVariableFloat("steer_y", 0.0)
+            prey.newAgent().setVariableFloat("type", 1.0)
+            prey.newAgent().setVariableInt("life", random.randint(0, 50))
+
+        predator = FLAMEGPU.agent("predator")
+        for i in range(num_predators):            
+            predator.newAgent().setVariableFloat("x",  random.uniform(-1.0, 1.0))
+            predator.newAgent().setVariableFloat("y",  random.uniform(-1.0, 1.0))
+            predator.newAgent().setVariableFloat("vx",  random.uniform(-1.0, 1.0))
+            predator.newAgent().setVariableFloat("vy",  random.uniform(-1.0, 1.0))
+            predator.newAgent().setVariableFloat("steer_x",  0.0)
+            predator.newAgent().setVariableFloat("steer_y", 0.0)
+            predator.newAgent().setVariableFloat("type", 0.0)
+            predator.newAgent().setVariableInt("life", random.randint(0, 5))
+
+        grass = FLAMEGPU.agent("grass")
+        for i in range(num_grass):            
+            grass.newAgent().setVariableFloat("x",  random.uniform(-1.0, 1.0))
+            grass.newAgent().setVariableFloat("y",  random.uniform(-1.0, 1.0))
+            grass.newAgent().setVariableInt("dead_cycles", 0)
+            grass.newAgent().setVariableInt("available", 1)
+            grass.newAgent().setVariableFloat("type", 2.0)
+
+
+
+def initialise_simulation(seed):
     model = create_model()
     define_messages(model)
     define_agents(model)
     define_environment(model)
     define_execution_order(model)
-
-    # Set up a population tracker for logging/plotting
-    pop_tracker = population_tracker(num_grass > 0)
-    model.addStepFunction(pop_tracker)
-    
-    """
-      Create Model Runner
-    """   
+    runs = define_runs(model)
+    logs = define_logs(model)
     cudaSimulation = pyflamegpu.CUDASimulation(model)
-    
-    # Apply a simulation seed
-    if seed is not None:
-        cudaSimulation.SimulationConfig().random_seed = seed
-        cudaSimulation.applyConfig()
-    
-    """
-      Initialise Model
-    """
-    # If no xml model file was is provided, generate a population programmatically.
-    if not cudaSimulation.SimulationConfig().input_file:
-        # Uniformly distribute agents within space, with uniformly distributed initial velocity.
-        # Using random seed
-        random.seed(cudaSimulation.SimulationConfig().random_seed)
-    
-        # Initialise prey agents
-        preyPopulation = pyflamegpu.AgentVector(model.Agent("prey"), num_prey)
-        for i in range(0, num_prey):
-            prey = preyPopulation[i]
-            prey.setVariableFloat("x", random.uniform(-1.0, 1.0))
-            prey.setVariableFloat("y", random.uniform(-1.0, 1.0))
-            prey.setVariableFloat("vx", random.uniform(-1.0, 1.0))
-            prey.setVariableFloat("vy", random.uniform(-1.0, 1.0))
-            prey.setVariableFloat("steer_x", 0.0)
-            prey.setVariableFloat("steer_y", 0.0)
-            prey.setVariableFloat("type", 1.0)
-            prey.setVariableInt("life", random.randint(0, 50))
-      
-        # Initialise predator agents
-        predatorPopulation = pyflamegpu.AgentVector(model.Agent("predator"), num_predators)
-        for i in range(0, num_predators):
-            predator = predatorPopulation[i]
-            predator.setVariableFloat("x", random.uniform(-1.0, 1.0))
-            predator.setVariableFloat("y", random.uniform(-1.0, 1.0))
-            predator.setVariableFloat("vx", random.uniform(-1.0, 1.0))
-            predator.setVariableFloat("vy", random.uniform(-1.0, 1.0))
-            predator.setVariableFloat("steer_x", 0.0)
-            predator.setVariableFloat("steer_y", 0.0)
-            predator.setVariableFloat("type", 0.0)
-            predator.setVariableInt("life", random.randint(0, 5))
+    cudaSimulation.setStepLog(logs)
+    cudaSimulation.simulate(runs)
+    cudaSimulation.exportLog("log.json",True,False,False,False,False)
 
-        grassPopulation = pyflamegpu.AgentVector(model.Agent("grass"), num_grass)
-        for i in range(0, num_grass):
-            grass = grassPopulation[i]
-            grass.setVariableFloat("x", random.uniform(-1.0, 1.0))
-            grass.setVariableFloat("y", random.uniform(-1.0, 1.0))
-            grass.setVariableInt("dead_cycles", 0)
-            grass.setVariableInt("available", 1)
-            grass.setVariableFloat("type", 2.0)
-	
-
-    cudaSimulation.setPopulationData(predatorPopulation)
-    cudaSimulation.setPopulationData(preyPopulation)
-    cudaSimulation.setPopulationData(grassPopulation)        
-    return [cudaSimulation, pop_tracker]
-
-def run_simulation():
-    """
-      Execution
-    """
-    # Initialise the simulation
-    [cudaSimulation, pop_tracker] = initialise_simulation(num_prey = 200, num_predators = 50, num_grass = 0, seed = 64)
-    cudaSimulation.SimulationConfig().steps = 1600
-
-    # Run the simulation
-    pop_tracker.reset()
-    cudaSimulation.simulate()
-    pop_tracker.plot()
-
-run_simulation()  
+if __name__ == "__main__":
+    start=time.time()
+    initialise_simulation(64)
+    end=time.time()
+    print(end-start)
+    exit()
