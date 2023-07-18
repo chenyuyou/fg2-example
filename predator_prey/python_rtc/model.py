@@ -102,6 +102,7 @@ def define_agents(model):
     fn = agent.newRTCFunction("prey_eaten", prey_eaten)
     fn.setMessageInput("predator_location_message")
     fn.setMessageOutput("prey_eaten_message")
+    ## setMessageOutputOptional 表示可以选择性输出，如果无数据输出就不输出。 
     fn.setMessageOutputOptional(True)
     fn.setAllowAgentDeath(True)
     

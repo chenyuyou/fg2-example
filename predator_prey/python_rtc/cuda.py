@@ -1,5 +1,5 @@
 """
-  outputdata agent function for Boid agents, which outputs publicly visible properties to a message list
+    输出捕食者的位置，不需要输入变量。
 """
 pred_output_location = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
@@ -15,7 +15,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::M
 """
 
 """
-  inputdata agent function for Boid agents, which reads data from neighbouring Boid agents, to perform the boid flocking model.
+    捕食者找出最近猎物，计算两者之间的距离的矢量。需要的输入变量为猎物的位置。
 """
 pred_follow_prey = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
@@ -60,6 +60,9 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu:
 }
 """
 
+"""
+    捕食者找出附近的其他捕猎者，计算出叠加的加速度，并以此改方向适量。需要的输入变量为猎物的位置。
+"""
 pred_avoid = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float SAME_SPECIES_AVOIDANCE_RADIUS = FLAMEGPU->environment.getProperty<float>("SAME_SPECIES_AVOIDANCE_RADIUS");
@@ -97,6 +100,9 @@ FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::Messa
 }
 """
 
+"""
+    捕食者移动，损失生命。无需信息输入输出。
+"""
 pred_move = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float MIN_POSITION = FLAMEGPU->environment.getProperty<float>("MIN_POSITION");
@@ -144,6 +150,9 @@ FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone)
 }
 """
 
+"""
+    捕食者匹配猎物输出的信息，如果匹配，则增加生命，如果不匹配，则减少生命。需要的输入变量为猎物输出的捕食者匹配信息，无输出信息。
+"""
 pred_eat_or_starve = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const flamegpu::id_t predator_id = FLAMEGPU->getID();
@@ -169,6 +178,9 @@ FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageBruteForce, flamegp
 }
 """
 
+"""
+    捕食者繁殖。无需信息输入输出。
+"""
 pred_reproduction = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float BOUNDS_WIDTH = FLAMEGPU->environment.getProperty<float>("BOUNDS_WIDTH");
@@ -182,7 +194,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::Mess
         float vy = FLAMEGPU->random.uniform<float>() * 2 - 1;
 
         FLAMEGPU->setVariable<int>("life", currentLife / 2);
-
+// 一下代码繁殖新的捕食者
         FLAMEGPU->agent_out.setVariable<float>("x", x);
         FLAMEGPU->agent_out.setVariable<float>("y", y);
         FLAMEGPU->agent_out.setVariable<float>("type", 0.0f);
@@ -197,6 +209,9 @@ FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::Mess
 }
 """
 
+"""
+    输出猎物的位置，不需要输入变量。
+"""
 prey_output_location = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     const flamegpu::id_t id = FLAMEGPU->getID();
@@ -209,6 +224,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::M
 }
 """
 
+"""
+    猎物躲避捕食者。输入为捕食者信息，无输出。
+"""
 prey_avoid_pred = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
@@ -244,6 +262,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::
 }
 """
 
+"""
+    猎物聚集。输入为其他猎物的信息，无输出信息。
+"""
 prey_flock = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PREY_GROUP_COHESION_RADIUS = FLAMEGPU->environment.getProperty<float>("PREY_GROUP_COHESION_RADIUS");
@@ -300,7 +321,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::Messa
     return flamegpu::ALIVE;
 }
 """
-
+"""
+    猎物移动，损失生命。无需信息输入输出。
+"""
 prey_move = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_move, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float MIN_POSITION = FLAMEGPU->environment.getProperty<float>("MIN_POSITION");
@@ -348,6 +371,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_move, flamegpu::MessageNone, flamegpu::MessageNone)
 }
 """
 
+"""
+    猎物找出距离最近的捕食者，且与该捕食者距离小于给定的捕食距离，标记猎物被吃。输入为捕食者信息，输出为特定的距离猎物最近的捕食者。
+"""
 prey_eaten = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
     const float PRED_KILL_DISTANCE = FLAMEGPU->environment.getProperty<float>("PRED_KILL_DISTANCE");
@@ -385,6 +411,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::Messa
 }
 """
 
+"""
+    猎物繁殖。无需信息输入输出。
+"""
 prey_reproduction = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_reproduction, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float REPRODUCE_PREY_PROB = FLAMEGPU->environment.getProperty<float>("REPRODUCE_PREY_PROB");
@@ -414,6 +443,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_reproduction, flamegpu::MessageNone, flamegpu::Mess
 }
 """
 
+"""
+    输出草的位置，不需要输入变量。
+"""
 grass_output_location = r"""
 FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     // Exercise 3.1 : Set the variables for the grass_location message
@@ -427,6 +459,9 @@ FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::
 }
 """
 
+"""
+    草找出距离最近的猎物（食草），且与该猎物距离小于给定的吃草距离，标记草被吃。输入为猎物的信息，输出为特定的距离草最近的猎物。
+"""
 grass_eaten = r"""
 FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
     const float grass_x = FLAMEGPU->getVariable<float>("x");
@@ -471,6 +506,9 @@ FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::Mess
 }
 """
 
+"""
+    草匹配猎物（食草）的信息，如果匹配，则猎物增加生命，如果不匹配，则减少生命。需要的输入变量为草输出的猎物的匹配信息，无输出信息。
+"""
 prey_eat_or_starve = r"""
 FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     int isDead = 0;
@@ -494,6 +532,9 @@ FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageBruteForce, flamegp
 }
 """
 
+"""
+    草繁殖。无需信息输入输出。
+"""
 grass_growth = r"""
 FLAMEGPU_AGENT_FUNCTION(grass_growth, flamegpu::MessageNone, flamegpu::MessageNone) {
     const int dead_cycles = FLAMEGPU->getVariable<int>("dead_cycles");

@@ -1,56 +1,62 @@
-output_message=r'''
-FLAMEGPU_AGENT_FUNCTION(output_message, flamegpu::MessageNone, flamegpu::MessageSpatial3D) {
-    FLAMEGPU->message_out.setVariable<flamegpu::id_t>("id", FLAMEGPU->getID());
-    FLAMEGPU->message_out.setLocation(
-        FLAMEGPU->getVariable<float>("x"),
-        FLAMEGPU->getVariable<float>("y"),
-        FLAMEGPU->getVariable<float>("z"));
+"""
+  
+"""
+pred_output_location = r"""
+FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
+    const flamegpu::id_t id = FLAMEGPU->getID();
+    const float x = FLAMEGPU->getVariable<float>("x");
+    const float y = FLAMEGPU->getVariable<float>("y");
+    FLAMEGPU->message_out.setVariable<int>("id", id);
+    FLAMEGPU->message_out.setVariable<float>("x", x);
+    FLAMEGPU->message_out.setVariable<float>("y", y);
+
     return flamegpu::ALIVE;
 }
-'''
+"""
 
-move=r'''
-FLAMEGPU_AGENT_FUNCTION(move, flamegpu::MessageSpatial3D, flamegpu::MessageNone) {
-    const flamegpu::id_t ID = FLAMEGPU->getID();
-    const float REPULSE_FACTOR = FLAMEGPU->environment.getProperty<float>("repulse");
-    const float RADIUS = FLAMEGPU->message_in.radius();
-    float fx = 0.0;
-    float fy = 0.0;
-    float fz = 0.0;
-    const float x1 = FLAMEGPU->getVariable<float>("x");
-    const float y1 = FLAMEGPU->getVariable<float>("y");
-    const float z1 = FLAMEGPU->getVariable<float>("z");
-    int count = 0;
-    for (const auto &message : FLAMEGPU->message_in(x1, y1, z1)) {
-        if (message.getVariable<flamegpu::id_t>("id") != ID) {
-            const float x2 = message.getVariable<float>("x");
-            const float y2 = message.getVariable<float>("y");
-            const float z2 = message.getVariable<float>("z");
-            float x21 = x2 - x1;
-            float y21 = y2 - y1;
-            float z21 = z2 - z1;
-            const float separation = sqrtf(x21*x21 + y21*y21 + z21*z21);
-            if (separation < RADIUS && separation > 0.0f) {
-                float k = sinf((separation / RADIUS)*3.141f*-2)*REPULSE_FACTOR;
-                // Normalise without recalculating separation
-                x21 /= separation;
-                y21 /= separation;
-                z21 /= separation;
-                fx += k * x21;
-                fy += k * y21;
-                fz += k * z21;
-                count++;
-            }
+"""
+
+"""
+pred_follow_prey = r"""
+FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+    const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
+    // Fetch the predator's position
+    const float predator_x = FLAMEGPU->getVariable<float>("x");
+    const float predator_y = FLAMEGPU->getVariable<float>("y");
+
+    // Find the closest prey by iterating the prey_location messages
+    float closest_prey_x = 0.0f;
+    float closest_prey_y = 0.0f;
+    float closest_prey_distance = PRED_PREY_INTERACTION_RADIUS;
+    int is_a_prey_in_range = 0;
+
+    for (const auto& msg : FLAMEGPU->message_in) {
+        // Fetch prey location
+        const float prey_x = msg.getVariable<float>("x");
+        const float prey_y = msg.getVariable<float>("y");
+
+        // Check if prey is within sight range of predator
+        const float dx = predator_x - prey_x;
+        const float dy = predator_y - prey_y;
+        const float separation = sqrt(dx * dx + dy * dy);
+
+        if (separation < closest_prey_distance) {
+            closest_prey_x = prey_x;
+            closest_prey_y = prey_y;
+            closest_prey_distance = separation;
+            is_a_prey_in_range = 1;
         }
     }
-    fx /= count > 0 ? count : 1;
-    fy /= count > 0 ? count : 1;
-    fz /= count > 0 ? count : 1;
-    FLAMEGPU->setVariable<float>("x", x1 + fx);
-    FLAMEGPU->setVariable<float>("y", y1 + fy);
-    FLAMEGPU->setVariable<float>("z", z1 + fz);
-    FLAMEGPU->setVariable<float>("drift", sqrtf(fx*fx + fy*fy + fz*fz));
+
+    // If there was a prey in range, steer the predator towards it
+    if (is_a_prey_in_range) {
+        const float steer_x = closest_prey_x - predator_x;
+        const float steer_y = closest_prey_y - predator_y;
+        FLAMEGPU->setVariable<float>("steer_x", steer_x);
+        FLAMEGPU->setVariable<float>("steer_y", steer_y);
+    }
+
     return flamegpu::ALIVE;
 }
-'''
+"""
 
