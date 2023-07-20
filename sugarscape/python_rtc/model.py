@@ -168,7 +168,6 @@ def initialise_simulation(seed):
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
         sugar_hotspots = []
-
         ## Hostpot area should cover around 50% of the map
         hotspot_area = 0
         while hotspot_area < GRID_WIDTH * GRID_HEIGHT:
@@ -179,19 +178,19 @@ def initialise_simulation(seed):
             rad = radius_dist
             hs = [width_dist, height_dist, rad, SUGAR_MAX_CAPACITY]
             sugar_hotspots.append(hs)
-#            sugar_hotspots.push_back(hs)
             hotspot_area += math.pi * rad * rad
 
         CELL_COUNT = GRID_WIDTH * GRID_HEIGHT
         
-        agent_sugar_dist = random.randint(0, SUGAR_MAX_CAPACITY * 2)
-        poor_env_sugar_dist = random.randint(0, int(SUGAR_MAX_CAPACITY/2))
+
         i = 0
         agent_id = 0
         init_pop = pyflamegpu.AgentVector(model.Agent("agent"), CELL_COUNT)
 #        init_pop.reserve(CELL_COUNT)
         for x in range(GRID_WIDTH):
             for y in range(GRID_HEIGHT):
+                agent_sugar_dist = random.randint(0, SUGAR_MAX_CAPACITY * 2)
+                poor_env_sugar_dist = random.randint(0, int(SUGAR_MAX_CAPACITY/2))
                 instance = init_pop[i]
                 instance.setVariableArrayUInt("pos", [x, y])
                 i += 1
@@ -210,8 +209,8 @@ def initialise_simulation(seed):
                     instance.setVariableInt("metabolism", 0)
                 env_sugar_lvl = 0
                 hotspot_core_size = 5
-                for hs in sugar_hotspots:
-             
+                ## 分配好糖热点，包括半径和糖量
+                for hs in sugar_hotspots:            
                     hs_x = int(hs[0])
                     hs_y = int(hs[1])
                     hs_rad = hs[2]
