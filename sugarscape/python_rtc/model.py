@@ -6,13 +6,18 @@ from cuda import *
 GRID_WIDTH = 256
 GRID_HEIGHT = 256
 
+## 代理空闲状态
 AGENT_STATUS_UNOCCUPIED = 0
+## 代理被占据状态
 AGENT_STATUS_OCCUPIED = 1
+## 代理需要移动的状态或请求更改代理身份
 AGENT_STATUS_MOVEMENT_REQUESTED = 2
+## 代理移动未解决或身份未解决
 AGENT_STATUS_MOVEMENT_UNRESOLVED = 3
 
-## Growback variables
+## 糖量自身生长速度
 SUGAR_GROWBACK_RATE = 1
+## 糖最大量
 SUGAR_MAX_CAPACITY  = 7
 
 ## Visualisation mode (0=occupied/move status, 1=occupied/sugar/level)
@@ -63,8 +68,6 @@ def define_agent_for_sub(agent):
 def define_agent(model):
     agent = makeCoreAgent(model)
     agent.newRTCFunction("metabolise_and_growback", metabolise_and_growback)
-
-
 
 def create_submodel():
 #   创建模型，并且起名
@@ -165,13 +168,14 @@ def initialise_simulation(seed):
 #   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
         sugar_hotspots = []
-        width_dist = random.randint(0, GRID_WIDTH - 1)
-        height_dist = random.randint(0, GRID_HEIGHT - 1)
-        ## Each sugar hotspot has a radius of 3-15 blocks
-        radius_dist = random.randint(5, 30)
+
         ## Hostpot area should cover around 50% of the map
         hotspot_area = 0
         while hotspot_area < GRID_WIDTH * GRID_HEIGHT:
+            width_dist = random.randint(0, GRID_WIDTH - 1)
+            height_dist = random.randint(0, GRID_HEIGHT - 1)
+        ## Each sugar hotspot has a radius of 3-15 blocks
+            radius_dist = random.randint(5, 30)
             rad = radius_dist
             hs = [width_dist, height_dist, rad, SUGAR_MAX_CAPACITY]
             sugar_hotspots.append(hs)
@@ -184,15 +188,16 @@ def initialise_simulation(seed):
         poor_env_sugar_dist = random.randint(0, int(SUGAR_MAX_CAPACITY/2))
         i = 0
         agent_id = 0
-        init_pop = pyflamegpu.AgentVector(model.Agent("agent"),CELL_COUNT)
+        init_pop = pyflamegpu.AgentVector(model.Agent("agent"), CELL_COUNT)
 #        init_pop.reserve(CELL_COUNT)
         for x in range(GRID_WIDTH):
             for y in range(GRID_HEIGHT):
                 instance = init_pop[i]
                 instance.setVariableArrayUInt("pos", [x, y])
                 i += 1
-#                if normal<0.1:
+#               初始化地块信息。
                 if random.uniform(0, 1)<0.1:
+                    ## 有糖的地块为非负数的agent_id，无糖的地块agent_id为-1。
                     instance.setVariableInt("agent_id", agent_id)
                     agent_id += 1
                     instance.setVariableInt("status", AGENT_STATUS_OCCUPIED)
@@ -206,6 +211,7 @@ def initialise_simulation(seed):
                 env_sugar_lvl = 0
                 hotspot_core_size = 5
                 for hs in sugar_hotspots:
+             
                     hs_x = int(hs[0])
                     hs_y = int(hs[1])
                     hs_rad = hs[2]
