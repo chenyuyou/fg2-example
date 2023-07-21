@@ -16,23 +16,15 @@ class create_agents(pyflamegpu.HostFunction):
             t.setVariableFloat("x", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
             t.setVariableFloat("y", FLAMEGPU.random.uniformFloat() * ENV_WIDTH)
 
-
-
 def create_model():
     model = pyflamegpu.ModelDescription("Circles Spatial3D")
     return model
 
 def define_environment(model):
-    """
-        环境设置
-    """
     env = model.Environment()
-#   代理个数
     env.newPropertyUInt("AGENT_COUNT", 16384)
-#   环境界限
     env.newPropertyFloat("ENV_MAX", floor(cbrt(env.getPropertyUInt("AGENT_COUNT"))))
     env.newPropertyFloat("RADIUS", 2.0)
-#
     env.newPropertyFloat("repulse", 0.05)
     return env
 

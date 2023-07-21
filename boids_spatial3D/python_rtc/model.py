@@ -55,16 +55,14 @@ def main():
 
 
     message = model.newMessageSpatial3D("location")
+    message.newVariableID("id")
 # Set the range and bounds.
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
     message.setMax(env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"))
 # A message to hold the location of an agent.
-    message.newVariableID("id")
-# X Y Z are implicit.
-# message.newVariable<float>("x");
-# message.newVariable<float>("y");
-# message.newVariable<float>("z");
+
+
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
     message.newVariableFloat("fz")
