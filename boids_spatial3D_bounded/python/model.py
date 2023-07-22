@@ -58,6 +58,7 @@ def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.Messa
 @pyflamegpu.agent_function
 def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.MessageNone):
     id = pyflamegpu.getID()
+#    print(id)
     # Agent position
     agent_x = pyflamegpu.getVariableFloat("x")
     agent_y = pyflamegpu.getVariableFloat("y")

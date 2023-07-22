@@ -13,6 +13,7 @@ def define_environment(model):
     env.newPropertyUInt("AGENT_COUNT", 16384)
     env.newPropertyFloat("ENV_WIDTH", int(env.getPropertyUInt("AGENT_COUNT")**(1/3)))  
     env.newPropertyFloat("repulse", 0.05)
+    env.newMacroPropertyFloat("payoff",3,3)
     return env
 
 def define_messages(model, env):

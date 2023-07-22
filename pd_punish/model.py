@@ -26,7 +26,7 @@ def define_environment(model):
 
     env.newPropertyFloat("noise", 0.7)
     env.newPropertyFloat("mu", 0.7)
-
+    env.newMacroProperty<float, 3, 3>("payoff")
 
 
 
@@ -58,7 +58,7 @@ def define_execution_order(model):
       Control flow
     """    
     layer = model.newLayer()
-    layer.addAgentFunction("prey", "prey_output_location")
+    layer.addAgentFunction("agent", "prey_output_location")
     layer.addAgentFunction("predator", "pred_output_location")
     layer.addAgentFunction("grass", "grass_output_location")
 
@@ -93,8 +93,8 @@ class initfn(pyflamegpu.HostFunction):
         agents = FLAMEGPU.agent("agent")
         for i in range(num_agents):            
             agents.newAgent().setVariableFloat("score", 0)
-            agents.newAgent().setVariableUInt("move", random.randint(0,2))
-            agents.newAgent().setVariableUInt("next_move", random.randint(0,2))
+            agents.newAgent().setVariableUInt("move", random.choice([0,1,2]))
+            agents.newAgent().setVariableUInt("next_move", random.choice([0,1,2]))
 
 
 def define_output(ensemble):

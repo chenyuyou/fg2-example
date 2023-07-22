@@ -1,24 +1,70 @@
-"""
-  
-"""
-pred_output_location = r"""
-FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
+
+output_status = r"""
+FLAMEGPU_AGENT_FUNCTION(output_status, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     const flamegpu::id_t id = FLAMEGPU->getID();
-    const float x = FLAMEGPU->getVariable<float>("x");
-    const float y = FLAMEGPU->getVariable<float>("y");
+    float score = FLAMEGPU->getVariable<float>("score");
+    unsigned int move = FLAMEGPU->getVariable<unsigned int>("move");
+//    int num_agents = FLAMEGPU->environment.getProperty<unsigned int>("num_agents");
+    
+//    int selected = FLAMEGPU->random.uniform<int>(1, num_agents);
     FLAMEGPU->message_out.setVariable<int>("id", id);
-    FLAMEGPU->message_out.setVariable<float>("x", x);
-    FLAMEGPU->message_out.setVariable<float>("y", y);
+    FLAMEGPU->message_out.setVariable<float>("score", score);
+    FLAMEGPU->message_out.setVariable<unsigned int>("move", move);
+    return flamegpu::ALIVE;
+}
+"""
+
+study= r"""
+FLAMEGPU_AGENT_FUNCTION(study, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+    float score = FLAMEGPU->getVariable<float>("score");
+    unsigned int move = FLAMEGPU->getVariable<unsigned int>("next_move");
+    int num_agents = FLAMEGPU->environment.getProperty<unsigned int>("num_agents");
+    int selected = FLAMEGPU->random.uniform<int>(1, num_agents);
+
+    for (const auto& msg : FLAMEGPU->message_in) {
+        if (msg.getVariable<int>("id") == selected) {
+            const float other_score = msg.getVariable<float>("score");
+            const unsigned int other_move = msg.getVariable<unsigned int>("move");
+            const float intense = FLAMEGPU->environment.getProperty<float>("intense");
+            float k = FLAMEGPU->environment.getProperty<float>("k");
+            const float b = FLAMEGPU->environment.getProperty<float>("b");
+            float c = FLAMEGPU->environment.getProperty<float>("c");
+            const float e = FLAMEGPU->environment.getProperty<float>("e");
+            float f = FLAMEGPU->environment.getProperty<float>("f");
+            const float noise = FLAMEGPU->environment.getProperty<float>("noise");
+            if (score < other_score){
+                unsigned int next_move = other_move;
+            }
+            if (move == 0) {
+                f = 0.0;
+                k = 0.1;
+
+            } else if (move == 1){
+                c = 0.0;
+                f = 0.0;
+                k = 0.0;
+            } else {
+                c = 0.0;
+            }
+            
+            float pay_off = intense * payoff * (1 - std::exp(-(noise + ((1 - noise) * t * (k * f + c)))));
+            score += pay_off
+        }
+    }
+
+    FLAMEGPU->message_out.setVariable<int>("id", id);
+    FLAMEGPU->message_out.setVariable<float>("score", score);
+    FLAMEGPU->message_out.setVariable<unsigned int>("move", move);
 
     return flamegpu::ALIVE;
 }
 """
 
-"""
 
-"""
-pred_follow_prey = r"""
-FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+
+
+study1 = r"""
+FLAMEGPU_AGENT_FUNCTION(study, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
     // Fetch the predator's position
     const float predator_x = FLAMEGPU->getVariable<float>("x");
@@ -60,3 +106,14 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu:
 }
 """
 
+mutate = r"""
+FLAMEGPU_AGENT_FUNCTION(mutate, flamegpu::MessageNone, flamegpu::MessageNone) {
+    float rng = FLAMEGPU->random.uniform<float>();
+    const float mu = FLAMEGPU->environment.getProperty<float>("mu");
+    if (rng < mu) {
+        unsigned int selected = FLAMEGPU->random.uniform<unsigned int>(0, 2);    
+        FLAMEGPU->setVariable<unsigned int>("move", selected);
+    }
+    return flamegpu::ALIVE;
+}
+"""
