@@ -26,12 +26,12 @@ def define_environment(model):
 
     env.newPropertyFloat("noise", 0.7)
     env.newPropertyFloat("mu", 0.7)
-    env.newMacroProperty<float, 3, 3>("payoff")
 
+    env.newMacroPropertyFloat("payoff",3,3)
 
 
 def define_messages(model):
-    message = model.newMessageBruteForce("agent_punish_message")
+    message = model.newMessageBruteForce("status_message")
     message.newVariableID("id")
     message.newVariableFloat("score")
     message.newVariableUInt("move")   
@@ -47,7 +47,13 @@ def define_agents(model):
     agent.newState('defect')    
     agent.newState('punishment')    
     # Assign its functions
-#    fn = agent.newRTCFunction("prey_eaten", prey_eaten)
+    fn = agent.newRTCFunction("output_status", output_status)
+    fn.setMessageOutput("status_message")
+
+    fn = agent.newRTCFunction("study", study)
+    fn.setMessageInput("status_message")
+
+    fn = agent.newRTCFunction("mutate", mutate)
 #    fn.setMessageInput("predator_location_message")
 #    fn.setMessageOutput("prey_eaten_message")
 #    fn.setMessageOutputOptional(True)
@@ -58,20 +64,19 @@ def define_execution_order(model):
       Control flow
     """    
     layer = model.newLayer()
-    layer.addAgentFunction("agent", "prey_output_location")
-    layer.addAgentFunction("predator", "pred_output_location")
-    layer.addAgentFunction("grass", "grass_output_location")
+    layer.addAgentFunction("agent", "output_status")
 
     layer = model.newLayer()
-    layer.addAgentFunction("predator", "pred_follow_prey")
-    layer.addAgentFunction("prey", "prey_avoid_pred")
-    
+    layer.addAgentFunction("agent", "study")
 
+    layer = model.newLayer()
+    layer.addAgentFunction("agent", "mutate")
+    
     model.addInitFunction(initfn())
 
 def define_runs(model):
     ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, 5)
+    runs = pyflamegpu.RunPlanVector(model, 12)
     runs.setSteps(100000)
     runs.setRandomSimulationSeed(12, 1)
 #    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
@@ -89,6 +94,21 @@ def define_logs(model):
 
 class initfn(pyflamegpu.HostFunction):        
     def run(self, FLAMEGPU):
+        payoff = FLAMEGPU.environment.getMacroPropertyFloat("payoff")
+        b = FLAMEGPU.environment.getPropertyFloat("b")
+        c = FLAMEGPU.environment.getPropertyFloat("c")
+        e = FLAMEGPU.environment.getPropertyFloat("e")
+        f = FLAMEGPU.environment.getPropertyFloat("f")
+        payoff[0][0]=b-c
+        payoff[0][1]=-c
+        payoff[0][2]=-c-e
+        payoff[1][0]=b
+        payoff[1][1]=0
+        payoff[1][2]=-e
+        payoff[2][0]=b-f
+        payoff[2][1]=-f
+        payoff[2][2]=-f-e
+
         num_agents = FLAMEGPU.environment.getPropertyUInt("num_agents")
         agents = FLAMEGPU.agent("agent")
         for i in range(num_agents):            

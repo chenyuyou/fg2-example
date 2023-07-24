@@ -71,6 +71,7 @@ def define_agents(model):
     agent.newVariableFloat("y")
     agent.newVariableFloat("z")
     agent.newVariableFloat("drift", 0)
+
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
     output_func_translated = pyflamegpu.codegen.translate(output_message)
     input_func_translated = pyflamegpu.codegen.translate(input_message)

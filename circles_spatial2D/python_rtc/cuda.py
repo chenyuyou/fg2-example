@@ -18,6 +18,9 @@ FLAMEGPU_AGENT_FUNCTION(input_message, flamegpu::MessageSpatial2D, flamegpu::Mes
     float fy = 0.0;
     const float x1 = FLAMEGPU->getVariable<float>("x");
     const float y1 = FLAMEGPU->getVariable<float>("y");
+//    auto pay = FLAMEGPU->environment.getMacroProperty<float,3,3>("payoff");
+//    printf("%f\n", static_cast<float>(pay[0][1]));
+//    printf("%f\n", float(pay[2][2]));
     int count = 0;
     for (const auto &message : FLAMEGPU->message_in(x1, y1)) {
         if (message.getVariable<flamegpu::id_t>("id") != ID) {

@@ -13,7 +13,15 @@ def define_environment(model):
     env.newPropertyUInt("AGENT_COUNT", 16384)
     env.newPropertyFloat("ENV_WIDTH", int(env.getPropertyUInt("AGENT_COUNT")**(1/3)))  
     env.newPropertyFloat("repulse", 0.05)
-    env.newMacroPropertyFloat("payoff",3,3)
+
+
+#    env.newPropertyFloat("b", 12.0)
+#    env.newPropertyFloat("c", 2.0)
+#    env.newPropertyFloat("e", 5.0)
+#    env.newPropertyFloat("f", 1.0)
+#    env.newMacroPropertyFloat("payoff",3,3)
+#    env.setPropertyFloat("payoff",{3,3})
+#    env.newPropertyArrayFloat('payoff1',[1,2,3])
     return env
 
 def define_messages(model, env):
@@ -43,6 +51,26 @@ def define_execution_order(model):
     layer.addAgentFunction("point", "output_message")
     layer = model.newLayer()
     layer.addAgentFunction("point", "input_message")
+#    model.addInitFunction(initfn())
+
+#class initfn(pyflamegpu.HostFunction):
+
+#    def run(self, FLAMEGPU):
+#        payoff = FLAMEGPU.environment.getMacroPropertyFloat("payoff")
+#        b = FLAMEGPU.environment.getPropertyFloat("b")
+#        c = FLAMEGPU.environment.getPropertyFloat("c")
+#        e = FLAMEGPU.environment.getPropertyFloat("e")
+#        f = FLAMEGPU.environment.getPropertyFloat("f")
+#        payoff[0][0]=b-c
+#        payoff[0][1]=-c
+#        payoff[0][2]=-c-e
+#        payoff[1][0]=b
+#        payoff[1][1]=0
+#        payoff[1][2]=-e
+#        payoff[2][0]=b-f
+#        payoff[2][1]=-f
+#        payoff[2][2]=-f-e
+
 
 def initialise_simulation(seed):
     model = create_model()
@@ -52,6 +80,7 @@ def initialise_simulation(seed):
     define_execution_order(model)
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
+
 
 
 #   设置可视化
