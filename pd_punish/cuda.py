@@ -36,7 +36,8 @@ FLAMEGPU_AGENT_FUNCTION(study, flamegpu::MessageBruteForce, flamegpu::MessageNon
             const float noise = FLAMEGPU->environment.getProperty<float>("noise");
 
             auto payoff = FLAMEGPU->environment.getMacroProperty<float,3,3>("payoff");
-
+//            printf("%d\n", static_cast<int>(payoff[1][2]));
+            
             if (score < other_score){
                 next_move = other_move;
             }

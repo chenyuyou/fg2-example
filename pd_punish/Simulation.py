@@ -14,6 +14,9 @@ def define_environment(model):
     env = model.Environment()
 
     env.newPropertyUInt("num_agents", 100)
+    env.newPropertyUInt("cooperation", 0)
+    env.newPropertyUInt("defect", 0)
+    env.newPropertyUInt("punishment", 0)
 
     env.newPropertyFloat("intense", 0.1)
 
@@ -43,10 +46,7 @@ def define_agents(model):
     agent.newVariableFloat("score")
     agent.newVariableUInt("move")
     agent.newVariableUInt("next_move")
-    agent.newState("cooperation")
-    agent.newState('defect')    
-    agent.newState('punishment')    
-    # Assign its functions
+
     fn = agent.newRTCFunction("output_status", output_status)
     fn.setMessageOutput("status_message")
 
@@ -54,10 +54,7 @@ def define_agents(model):
     fn.setMessageInput("status_message")
 
     fn = agent.newRTCFunction("mutate", mutate)
-#    fn.setMessageInput("predator_location_message")
-#    fn.setMessageOutput("prey_eaten_message")
-#    fn.setMessageOutputOptional(True)
-#    fn.setAllowAgentDeath(True)
+
         
 def define_execution_order(model):
     """
@@ -73,23 +70,27 @@ def define_execution_order(model):
     layer = model.newLayer()
     layer.addAgentFunction("agent", "mutate")
     model.addInitFunction(initfn())
-
-
-
-
-
+    model.addStepFunction(stepfn())
 
 def define_logs(model):
     log = pyflamegpu.StepLoggingConfig(model)
-    log.setFrequency(5)
-    log.agent("agent","cooperation").logCount()
+    log.setFrequency(1)
+#    log.agent("agent").logCount()
+    log.logEnvironment("cooperation")
+    log.logEnvironment("defect")
+    log.logEnvironment("punishment")
 #    log.logEnvironment("REPRODUCE_PREY_PROB")
-
-#    log.agent("agent").logSumUInt("move")
-#    log.agent("agent","defect").logSumUInt("move")
-#    log.agent("agent","punishment").logSumUInt("move")
-
     return log
+
+class stepfn(pyflamegpu.HostFunction):        
+    def run(self, FLAMEGPU):
+        agents = FLAMEGPU.agent("agent")
+        cooperation = agents.countUInt("move", 0)
+        defect = agents.countUInt("move", 1)
+        punishment = agents.countUInt("move", 2)
+        FLAMEGPU.environment.setPropertyUInt("cooperation", cooperation)
+        FLAMEGPU.environment.setPropertyUInt("defect", defect)
+        FLAMEGPU.environment.setPropertyUInt("punishment", punishment)
 
 class initfn(pyflamegpu.HostFunction):        
     def run(self, FLAMEGPU):
@@ -98,6 +99,9 @@ class initfn(pyflamegpu.HostFunction):
         c = FLAMEGPU.environment.getPropertyFloat("c")
         e = FLAMEGPU.environment.getPropertyFloat("e")
         f = FLAMEGPU.environment.getPropertyFloat("f")
+#        payoff=((b-c, -c, -c-e),
+#                ( b,   0,   -e),
+#                (b-f, -f, -f-e))  
         payoff[0][0]=b-c
         payoff[0][1]=-c
         payoff[0][2]=-c-e
@@ -109,31 +113,16 @@ class initfn(pyflamegpu.HostFunction):
         payoff[2][2]=-f-e
 
         num_agents = FLAMEGPU.environment.getPropertyUInt("num_agents")
+        agents = FLAMEGPU.agent("agent")
+        
 #        agents = FLAMEGPU.agent("agent","cooperation")
-        agents = FLAMEGPU.agent("agent","cooperation")
         for i in range(num_agents):            
-            agents.newAgent().setVariableFloat("score", 0)
-            agents.newAgent().setVariableUInt("move", 0)
-            agents.newAgent().setVariableUInt("next_move", random.choice([0,1,2]))
-#            agents.newAgent().setInitialState("cooperation")
-        agents = FLAMEGPU.agent("agent","defect")
-        for i in range(num_agents):            
-            agents.newAgent().setVariableFloat("score", 0)
-            agents.newAgent().setVariableUInt("move", 1)
-            agents.newAgent().setVariableUInt("next_move", random.choice([0,1,2]))
-        agents = FLAMEGPU.agent("agent","punishment")
-        for i in range(num_agents):            
-            agents.newAgent().setVariableFloat("score", 0)
-            agents.newAgent().setVariableUInt("move", 2)
-            agents.newAgent().setVariableUInt("next_move", random.choice([0,1,2]))
-#def define_output(ensemble):
-#    ensemble.Config().out_directory = "results"
-#    ensemble.Config().out_format = "json"
-#    ensemble.Config().concurrent_runs = 1
-#    ensemble.Config().timing = True
-#    ensemble.Config().truncate_log_files = True
-#    ensemble.Config().error_level = pyflamegpu.CUDAEnsembleConfig.Fast
-#    ensemble.Config().devices = pyflamegpu.IntSet([0])
+            agent = agents.newAgent()
+            agent.setVariableFloat("score", 0)
+            agent.setVariableUInt("move", random.choice([0,1,2]))
+            agent.setVariableUInt("next_move", random.choice([0,1,2]))
+        
+
 
 def define_runs(model):
     ## 设置为要测试的参数。
@@ -152,14 +141,8 @@ def initialise_simulation(seed):
     logs = define_logs(model)
     run=define_runs(model)
     cuda_sim = pyflamegpu.CUDASimulation(model)
-    
-#    cuda_sim.SimulationConfig().steps = 100
-#    cuda_sim.SimulationConfig().random_seed=12
     cuda_sim.setStepLog(logs)
-#    cuda_sim.initialise(sys.argv)
     cuda_sim.simulate(run)
-#    cuda_sim.exportData('end.json')
-#    runs.setPopulationData(predatorPopulation)
     cuda_sim.exportLog(
   "log.json", # The file to output (must end '.json' or '.xml')
   True,       # Whether the step log should be included in the log file
@@ -168,12 +151,6 @@ def initialise_simulation(seed):
   False,       # Whether the simulation time should be included in the log file (treated as false if exit log not included)
   False) 
 
-
-#    logs = define_logs(model)
-#    ensembleSimulation = pyflamegpu.CUDAEnsemble(model)
-#    define_output(ensembleSimulation)
-#    ensembleSimulation.setStepLog(logs)
-#    ensembleSimulation.simulate(runs)
 
 
 if __name__ == "__main__":

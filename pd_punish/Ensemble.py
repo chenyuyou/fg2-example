@@ -14,18 +14,21 @@ def define_environment(model):
     env = model.Environment()
 
     env.newPropertyUInt("num_agents", 100)
+    env.newPropertyUInt("cooperation", 0)
+    env.newPropertyUInt("defect", 0)
+    env.newPropertyUInt("punishment", 0)
 
-    env.newPropertyFloat("intense", 0.1)
+    env.newPropertyFloat("intense", 1.0)
 
-    env.newPropertyFloat("k", 1.5)
+    env.newPropertyFloat("k", 6.0)
 
-    env.newPropertyFloat("b", 2.0)
-    env.newPropertyFloat("c", 2.0)
+    env.newPropertyFloat("b", 16.0)
+    env.newPropertyFloat("c", 15.0)
     env.newPropertyFloat("e", 5.0)
-    env.newPropertyFloat("f", 1.0)
+    env.newPropertyFloat("f", 5.0)
 
-    env.newPropertyFloat("noise", 0.7)
-    env.newPropertyFloat("mu", 0.7)
+    env.newPropertyFloat("noise", 0.1)
+    env.newPropertyFloat("mu", 0.0001)
 
     env.newMacroPropertyFloat("payoff",3,3)
 
@@ -43,9 +46,7 @@ def define_agents(model):
     agent.newVariableFloat("score")
     agent.newVariableUInt("move")
     agent.newVariableUInt("next_move")    
-    agent.newState('cooperation')
-    agent.newState('defect')    
-    agent.newState('punishment')    
+ 
     # Assign its functions
     fn = agent.newRTCFunction("output_status", output_status)
     fn.setMessageOutput("status_message")
@@ -73,24 +74,28 @@ def define_execution_order(model):
     layer.addAgentFunction("agent", "mutate")
     
     model.addInitFunction(initfn())
-
-def define_runs(model):
-    ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, 12)
-    runs.setSteps(100000)
-    runs.setRandomSimulationSeed(12, 1)
-#    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
-    return runs
+    model.addStepFunction(stepfn())
 
 def define_logs(model):
     log = pyflamegpu.StepLoggingConfig(model)
     log.setFrequency(1)
 #    log.logEnvironment("REPRODUCE_PREY_PROB")
-    log.agent("agent","cooperation").logSumUInt("move")
-    log.agent("agent","defect").logSumUInt("move")
-    log.agent("agent","punishment").logSumUInt("move")
+    log.logEnvironment("cooperation")
+    log.logEnvironment("defect")
+    log.logEnvironment("punishment")
 
     return log
+
+class stepfn(pyflamegpu.HostFunction):        
+    def run(self, FLAMEGPU):
+        agents = FLAMEGPU.agent("agent")
+        cooperation = agents.countUInt("move", 0)
+        defect = agents.countUInt("move", 1)
+        punishment = agents.countUInt("move", 2)
+        FLAMEGPU.environment.setPropertyUInt("cooperation", cooperation)
+        FLAMEGPU.environment.setPropertyUInt("defect", defect)
+        FLAMEGPU.environment.setPropertyUInt("punishment", punishment)
+
 
 class initfn(pyflamegpu.HostFunction):        
     def run(self, FLAMEGPU):
@@ -112,19 +117,29 @@ class initfn(pyflamegpu.HostFunction):
         num_agents = FLAMEGPU.environment.getPropertyUInt("num_agents")
         agents = FLAMEGPU.agent("agent")
         for i in range(num_agents):            
-            agents.newAgent().setVariableFloat("score", 0)
-            agents.newAgent().setVariableUInt("move", random.choice([0,1,2]))
-            agents.newAgent().setVariableUInt("next_move", random.choice([0,1,2]))
-
+            agent = agents.newAgent()
+            agent.setVariableFloat("score", 0)
+            agent.setVariableUInt("move", random.choice([0,1,2]))
+            agent.setVariableUInt("next_move", random.choice([0,1,2]))
+        
+core=500
 
 def define_output(ensemble):
     ensemble.Config().out_directory = "results"
     ensemble.Config().out_format = "json"
-    ensemble.Config().concurrent_runs = 1
+    ensemble.Config().concurrent_runs = core
     ensemble.Config().timing = True
     ensemble.Config().truncate_log_files = True
     ensemble.Config().error_level = pyflamegpu.CUDAEnsembleConfig.Fast
     ensemble.Config().devices = pyflamegpu.IntSet([0])
+
+def define_runs(model):
+    ## 设置为要测试的参数。
+    runs = pyflamegpu.RunPlanVector(model, core)
+    runs.setSteps(100000)
+    runs.setRandomSimulationSeed(12, 1)
+#    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
+    return runs
 
 def initialise_simulation(seed):
     model = create_model()
