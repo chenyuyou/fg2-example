@@ -74,17 +74,9 @@ def define_execution_order(model):
     layer.addAgentFunction("agent", "mutate")
     
     model.addInitFunction(initfn())
-    model.addStepFunction(stepfn())
+#    model.addStepFunction(stepfn())
 
-def define_logs(model):
-    log = pyflamegpu.StepLoggingConfig(model)
-    log.setFrequency(1)
-#    log.logEnvironment("REPRODUCE_PREY_PROB")
-    log.logEnvironment("cooperation")
-    log.logEnvironment("defect")
-    log.logEnvironment("punishment")
 
-    return log
 
 class stepfn(pyflamegpu.HostFunction):        
     def run(self, FLAMEGPU):
@@ -121,8 +113,18 @@ class initfn(pyflamegpu.HostFunction):
             agent.setVariableFloat("score", 0)
             agent.setVariableUInt("move", random.choice([0,1,2]))
             agent.setVariableUInt("next_move", random.choice([0,1,2]))
-        
-core=500
+
+def define_logs(model):
+    log = pyflamegpu.StepLoggingConfig(model)
+    log.setFrequency(1)
+#    log.logEnvironment("REPRODUCE_PREY_PROB")
+    log.logEnvironment("cooperation")
+    log.logEnvironment("defect")
+    log.logEnvironment("punishment")
+
+    return log
+
+core=48
 
 def define_output(ensemble):
     ensemble.Config().out_directory = "results"
@@ -135,8 +137,8 @@ def define_output(ensemble):
 
 def define_runs(model):
     ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, core)
-    runs.setSteps(100000)
+    runs = pyflamegpu.RunPlanVector(model, 10)
+    runs.setSteps(10000)
     runs.setRandomSimulationSeed(12, 1)
 #    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
     return runs
@@ -150,7 +152,7 @@ def initialise_simulation(seed):
     runs = define_runs(model)
     logs = define_logs(model)
     ensembleSimulation = pyflamegpu.CUDAEnsemble(model)
-    define_output(ensembleSimulation)
+#    define_output(ensembleSimulation)
     ensembleSimulation.setStepLog(logs)
     ensembleSimulation.simulate(runs)
 

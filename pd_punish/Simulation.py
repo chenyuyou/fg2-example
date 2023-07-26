@@ -18,17 +18,17 @@ def define_environment(model):
     env.newPropertyUInt("defect", 0)
     env.newPropertyUInt("punishment", 0)
 
-    env.newPropertyFloat("intense", 0.1)
+    env.newPropertyFloat("intense", 1.0)
 
-    env.newPropertyFloat("k", 1.5)
+    env.newPropertyFloat("k", 6.0)
 
-    env.newPropertyFloat("b", 2.0)
-    env.newPropertyFloat("c", 2.0)
+    env.newPropertyFloat("b", 16.0)
+    env.newPropertyFloat("c", 15.0)
     env.newPropertyFloat("e", 5.0)
-    env.newPropertyFloat("f", 1.0)
+    env.newPropertyFloat("f", 5.0)
 
-    env.newPropertyFloat("noise", 0.7)
-    env.newPropertyFloat("mu", 0.7)
+    env.newPropertyFloat("noise", 0.1)
+    env.newPropertyFloat("mu", 0.0001)
 
     env.newMacroPropertyFloat("payoff",3,3)
 
