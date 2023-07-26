@@ -74,7 +74,7 @@ def define_execution_order(model):
     layer.addAgentFunction("agent", "mutate")
     
     model.addInitFunction(initfn())
-#    model.addStepFunction(stepfn())
+    model.addStepFunction(stepfn())
 
 
 
@@ -137,10 +137,10 @@ def define_output(ensemble):
 
 def define_runs(model):
     ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, 10)
+    runs = pyflamegpu.RunPlanVector(model, 11)
     runs.setSteps(10000)
     runs.setRandomSimulationSeed(12, 1)
-#    runs.setPropertyLerpRangeFloat("REPRODUCE_PREY_PROB", 0.05, 1.05)
+    runs.setPropertyLerpRangeFloat("noise", 0.0, 1.0)
     return runs
 
 def initialise_simulation(seed):
@@ -152,7 +152,7 @@ def initialise_simulation(seed):
     runs = define_runs(model)
     logs = define_logs(model)
     ensembleSimulation = pyflamegpu.CUDAEnsemble(model)
-#    define_output(ensembleSimulation)
+    define_output(ensembleSimulation)
     ensembleSimulation.setStepLog(logs)
     ensembleSimulation.simulate(runs)
 
