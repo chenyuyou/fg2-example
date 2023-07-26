@@ -13,7 +13,7 @@ def define_environment(model):
     """
     env = model.Environment()
 
-    env.newPropertyUInt("num_agents", 100)
+    env.newPropertyUInt("num_agents", 5000)
     env.newPropertyUInt("cooperation", 0)
     env.newPropertyUInt("defect", 0)
     env.newPropertyUInt("punishment", 0)
@@ -124,7 +124,7 @@ def define_logs(model):
 
     return log
 
-core=48
+core=100
 
 def define_output(ensemble):
     ensemble.Config().out_directory = "results"
@@ -137,10 +137,10 @@ def define_output(ensemble):
 
 def define_runs(model):
     ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, 11)
+    runs = pyflamegpu.RunPlanVector(model, 10)
     runs.setSteps(10000)
     runs.setRandomSimulationSeed(12, 1)
-    runs.setPropertyLerpRangeFloat("noise", 0.0, 1.0)
+#    runs.setPropertyLerpRangeFloat("noise", 0.0, 1.0)
     return runs
 
 def initialise_simulation(seed):
