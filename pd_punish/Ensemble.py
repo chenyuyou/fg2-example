@@ -13,12 +13,12 @@ def define_environment(model):
     """
     env = model.Environment()
 
-    env.newPropertyUInt("num_agents", 5000)
+    env.newPropertyUInt("num_agents", 10000)
     env.newPropertyUInt("cooperation", 0)
     env.newPropertyUInt("defect", 0)
     env.newPropertyUInt("punishment", 0)
 
-    env.newPropertyFloat("intense", 1.0)
+    env.newPropertyFloat("intense", 0.1)
 
     env.newPropertyFloat("k", 6.0)
 
@@ -28,7 +28,7 @@ def define_environment(model):
     env.newPropertyFloat("f", 5.0)
 
     env.newPropertyFloat("noise", 0.1)
-    env.newPropertyFloat("mu", 0.0001)
+    env.newPropertyFloat("mu", 0.01)
 
     env.newMacroPropertyFloat("payoff",3,3)
 
@@ -116,7 +116,7 @@ class initfn(pyflamegpu.HostFunction):
 
 def define_logs(model):
     log = pyflamegpu.StepLoggingConfig(model)
-    log.setFrequency(1)
+    log.setFrequency(10)
 #    log.logEnvironment("REPRODUCE_PREY_PROB")
     log.logEnvironment("cooperation")
     log.logEnvironment("defect")
@@ -129,7 +129,7 @@ core=100
 def define_output(ensemble):
     ensemble.Config().out_directory = "results"
     ensemble.Config().out_format = "json"
-    ensemble.Config().concurrent_runs = core
+#    ensemble.Config().concurrent_runs = 1
     ensemble.Config().timing = True
     ensemble.Config().truncate_log_files = True
     ensemble.Config().error_level = pyflamegpu.CUDAEnsembleConfig.Fast
@@ -137,10 +137,10 @@ def define_output(ensemble):
 
 def define_runs(model):
     ## 设置为要测试的参数。
-    runs = pyflamegpu.RunPlanVector(model, 10)
-    runs.setSteps(10000)
+    runs = pyflamegpu.RunPlanVector(model, 16)
+    runs.setSteps(3000)
     runs.setRandomSimulationSeed(12, 1)
-#    runs.setPropertyLerpRangeFloat("noise", 0.0, 1.0)
+    runs.setPropertyLerpRangeFloat("c", 0.0, 15.0)
     return runs
 
 def initialise_simulation(seed):
