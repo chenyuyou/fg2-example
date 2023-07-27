@@ -9,16 +9,19 @@ def vec3Mult(x, y, z, multiplier):
     x *= multiplier
     y *= multiplier
     z *= multiplier
+    return x, y, z
 
 def vec3Div(x, y, z, divisor):
     x /= divisor
     y /= divisor
     z /= divisor
+    return x, y, z
 
 def vec3Normalize(x, y, z):
     # Get the length
     length = vec3Length(x, y, z)
-    vec3Div(x, y, z, length)
+    x, y, z=vec3Div(x, y, z, length)
+    return x, y, z
 
 def create_model():
 #   创建模型，并且起名
@@ -146,8 +149,8 @@ def initialise_simulation(seed):
 
             fmagnitude = random.uniform(min_speed, max_speed)
 
-            vec3Normalize(fx, fy, fz)
-            vec3Mult(fx, fy, fz, fmagnitude)
+            fx, fy, fz=vec3Normalize(fx, fy, fz)
+            fx, fy, fz=vec3Mult(fx, fy, fz, fmagnitude)
 
             instance.setVariableFloat("fx", fx)
             instance.setVariableFloat("fy", fy)

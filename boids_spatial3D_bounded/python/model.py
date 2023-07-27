@@ -6,61 +6,32 @@ import sys, random, math, time
 
 def vec3Normalize(x, y, z):
     length = math.sqrt(x * x + y * y + z * z)
-    vec3Div(x, y, z, length)
-
+    x, y, z=vec3Div(x, y, z, length)
+    return x, y, z
 
 
 @pyflamegpu.device_function
 def vec3Length(x: float, y: float, z: float) -> float :
     return math.sqrt(x * x + y * y + z * z)
 
-@pyflamegpu.device_function  
-def vec3Mult(x: float, y: float, z: float, multiplier: float):
+
+def vec3Mult(x, y, z, multiplier):
     x *= multiplier
     y *= multiplier
     z *= multiplier
+    return x, y, z
 
-@pyflamegpu.device_function  
-def vec3Div(x: float, y: float, z: float, divisor: float):
+def vec3Div(x, y, z, divisor):
     x /= divisor
     y /= divisor
     z /= divisor
+    return x, y, z
 
-@pyflamegpu.device_function
-def clampPosition1(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
-    x = MIN_POSITION if (x < MIN_POSITION) else x
-    x = MAX_POSITION if (x > MAX_POSITION) else x
-
-    y = MIN_POSITION if (y < MIN_POSITION) else y
-    y = MAX_POSITION if (y > MAX_POSITION) else y
-
-    z = MIN_POSITION if (z < MIN_POSITION) else z
-    z = MAX_POSITION if (z > MAX_POSITION) else z
-
-@pyflamegpu.device_function
-def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
-    if x < MIN_POSITION:
-        x = MIN_POSITION 
-    if x > MAX_POSITION:
-        x = MAX_POSITION
-    if y < MIN_POSITION:
-        y = MIN_POSITION 
-    if y > MAX_POSITION:
-        y = MAX_POSITION
-    if z < MIN_POSITION:
-        z = MIN_POSITION 
-    if z > MAX_POSITION:
-        z = MAX_POSITION
 
 
 @pyflamegpu.agent_function
 def outputdata(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.MessageSpatial3D):
     message_out.setVariableInt("id", pyflamegpu.getID())
-#    message_out.setLocation(
-#        pyflamegpu.getVariableFloat("x"),
-#        pyflamegpu.getVariableFloat("y"),
-#        pyflamegpu.getVariableFloat("z"))
-
     message_out.setVariableFloat("x", pyflamegpu.getVariableFloat("x"))
     message_out.setVariableFloat("y", pyflamegpu.getVariableFloat("y"))
     message_out.setVariableFloat("z", pyflamegpu.getVariableFloat("z"))
@@ -144,8 +115,14 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
 
     if (perceived_count) :
         # Divide positions/velocities by relevant counts.
-        vec3Div(perceived_centre_x, perceived_centre_y, perceived_centre_z, perceived_count)
-        vec3Div(global_velocity_x, global_velocity_y, global_velocity_z, perceived_count)
+
+        perceived_centre_x /=perceived_count
+        perceived_centre_y /=perceived_count
+        perceived_centre_z /=perceived_count
+        global_velocity_x/=perceived_count
+        global_velocity_y/=perceived_count
+        global_velocity_z/=perceived_count
+ 
 
         # Rule 1) Steer towards perceived centre of flock (Cohesion)
         steer_velocity_x = 0.0
@@ -177,8 +154,10 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
 
 
     # Global scale of velocity change
-    vec3Mult(velocity_change_x, velocity_change_y, velocity_change_z, pyflamegpu.environment.getPropertyFloat("GLOBAL_SCALE"))
-
+    GLOBAL_SCALE = pyflamegpu.environment.getPropertyFloat("GLOBAL_SCALE")
+    velocity_change_x*=GLOBAL_SCALE
+    velocity_change_y*=GLOBAL_SCALE
+    velocity_change_z*=GLOBAL_SCALE
     # Update agent velocity
     agent_fx += velocity_change_x
     agent_fy += velocity_change_y
@@ -187,14 +166,22 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     # Bound velocity
     agent_fscale = vec3Length(agent_fx, agent_fy, agent_fz)
     if agent_fscale > 1 : 
-        vec3Div(agent_fx, agent_fy, agent_fz, agent_fscale)
+        agent_fx/=agent_fscale
+        agent_fy/=agent_fscale
+        agent_fz/=agent_fscale
+        
     
     minSpeed = 0.5
     if agent_fscale < minSpeed :
         # Normalise
-        vec3Div(agent_fx, agent_fy, agent_fz, agent_fscale)
+        agent_fx/=agent_fscale
+        agent_fy/=agent_fscale
+        agent_fz/=agent_fscale
+
         # Scale to min
-        vec3Mult(agent_fx, agent_fy, agent_fz, minSpeed)
+        agent_fx*=minSpeed
+        agent_fy*=minSpeed
+        agent_fz*=minSpeed
 
 
     # Wrap positions
@@ -223,8 +210,16 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     agent_y += agent_fy * TIME_SCALE
     agent_z += agent_fz * TIME_SCALE
 
+    MIN_POSITION=pyflamegpu.environment.getPropertyFloat("MIN_POSITION") 
+    MAX_POSITION=pyflamegpu.environment.getPropertyFloat("MAX_POSITION")
+    agent_x = MIN_POSITION if (agent_x < MIN_POSITION) else agent_x
+    agent_x = MAX_POSITION if (agent_x > MAX_POSITION) else agent_x
 
-    clampPosition(agent_x, agent_y, agent_z, pyflamegpu.environment.getPropertyFloat("MIN_POSITION"), pyflamegpu.environment.getPropertyFloat("MAX_POSITION"))
+    agent_y = MIN_POSITION if (agent_y < MIN_POSITION) else agent_y
+    agent_y = MAX_POSITION if (agent_y > MAX_POSITION) else agent_y
+
+    agent_z = MIN_POSITION if (agent_z < MIN_POSITION) else agent_z
+    agent_z = MAX_POSITION if (agent_z > MAX_POSITION) else agent_z
 
     # Update global agent memory.
     pyflamegpu.setVariableFloat("x", agent_x)
@@ -370,8 +365,8 @@ def initialise_simulation(seed):
         # Generate a random speed between 0 and the maximum initial speed
             fmagnitude = random.uniform(min_speed, max_speed)
         # Use the random speed for the velocity.
-            vec3Normalize(fx, fy, fz)
-            vec3Mult(fx, fy, fz, fmagnitude)
+            fx, fy, fz=vec3Normalize(fx, fy, fz)
+            fx, fy, fz=vec3Mult(fx, fy, fz, fmagnitude)
 
         # Set these for the agent.
             instance.setVariableFloat("fx", fx)

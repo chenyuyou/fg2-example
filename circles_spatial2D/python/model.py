@@ -2,18 +2,14 @@ from pyflamegpu import *
 import time, sys, random, math
 import pyflamegpu.codegen
 
-@pyflamegpu.device_function
-def sqrt_p(x: float, y: float) -> float :
-    return math.sqrtf(x * x + y * y )
-
 @pyflamegpu.agent_function
 def output_message(message_in: pyflamegpu.MessageNone, message_out: pyflamegpu.MessageSpatial2D):
     message_out.setVariableUInt("id", pyflamegpu.getID())
-    message_out.setVariableFloat("x", pyflamegpu.getVariableFloat("x"))
-    message_out.setVariableFloat("y", pyflamegpu.getVariableFloat("y"))
-#    message_out.setLocation(
-#        pyflamegpu.getVariableFloat("x"),
-#        pyflamegpu.getVariableFloat("y"))
+#    message_out.setVariableFloat("x", pyflamegpu.getVariableFloat("x"))
+#    message_out.setVariableFloat("y", pyflamegpu.getVariableFloat("y"))
+    message_out.setLocation(
+        pyflamegpu.getVariableFloat("x"),
+        pyflamegpu.getVariableFloat("y"))
     return pyflamegpu.ALIVE
 
 @pyflamegpu.agent_function
@@ -21,8 +17,8 @@ def input_message(message_in: pyflamegpu.MessageSpatial2D, message_out: pyflameg
     ID = pyflamegpu.getID()
     REPULSE_FACTOR = pyflamegpu.environment.getPropertyFloat("repulse")
     RADIUS = message_in.radius()
-    fx = 0
-    fy = 0
+    fx = 0.0
+    fy = 0.0
     x1 = pyflamegpu.getVariableFloat("x")
     y1 = pyflamegpu.getVariableFloat("y")
     count = 0
@@ -32,7 +28,7 @@ def input_message(message_in: pyflamegpu.MessageSpatial2D, message_out: pyflameg
             y2 = message.getVariableFloat("y")
             x21 = x2 - x1
             y21 = y2 - y1
-            separation = sqrt_p(x21 ,y21)
+            separation = math.sqrt(x21*x21+y21*y21)
             if separation < RADIUS and separation > 0.0 :
                 k = math.sin((separation / RADIUS)*3.141*(-2))*REPULSE_FACTOR
                 # Normalise without recalculating separation
@@ -45,7 +41,7 @@ def input_message(message_in: pyflamegpu.MessageSpatial2D, message_out: pyflameg
     fy /= count if count > 0 else 1
     pyflamegpu.setVariableFloat("x", x1 + fx)
     pyflamegpu.setVariableFloat("y", y1 + fy)
-    pyflamegpu.setVariableFloat("drift", sqrt_p(fx , fy))
+    pyflamegpu.setVariableFloat("drift", math.sqrt(fx*fx + fy*fy))
     return pyflamegpu.ALIVE
 
 
@@ -75,8 +71,7 @@ def define_agents(model):
     agent = model.newAgent("point")
     agent.newVariableFloat("x")
     agent.newVariableFloat("y")
-    agent.newVariableFloat("z")
-    agent.newVariableFloat("drift", 0)
+    agent.newVariableFloat("drift", 0.0)
 
 #   有关信息的描述是FlameGPU2的关键特色，还需要进一步理解。
     output_func_translated = pyflamegpu.codegen.translate(output_message)
@@ -111,7 +106,7 @@ def initialise_simulation(seed):
         m_vis.setInitialCameraTarget(INIT_CAM, INIT_CAM, 0)
         m_vis.setInitialCameraLocation(INIT_CAM, INIT_CAM, env.getPropertyFloat("ENV_WIDTH"))
         m_vis.setCameraSpeed(0.01)
-#        m_vis.setSimulationSpeed(25)
+        m_vis.setSimulationSpeed(25)
 #   将“point” agent添加到可视化中
         point_agt = m_vis.addAgent("point")
 #   设置“point” agent的形状和大小
