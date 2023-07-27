@@ -8,15 +8,18 @@ def vec3Mult(x, y, z, multiplier):
     x *= multiplier
     y *= multiplier
     z *= multiplier
-    
+    return x, y, z
+
 def vec3Div(x, y, z, divisor):
     x /= divisor
     y /= divisor
     z /= divisor
+    return x, y, z
 
 def vec3Normalize(x, y, z):
     length = math.sqrt(x * x + y * y + z * z)
-    vec3Div(x, y, z, length)
+    x, y, z=vec3Div(x, y, z, length)
+    return x, y, z
 
 def create_model():
     model = pyflamegpu.ModelDescription("Boids_BruteForce (RTC)")
@@ -58,9 +61,7 @@ def define_messages(model, env):
 # A message to hold the location of an agent.
     message.newVariableID("id")
 # X Y Z are implicit.
-# message.newVariable<float>("x");
-# message.newVariable<float>("y");
-# message.newVariable<float>("z");
+
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
     message.newVariableFloat("fz")
@@ -153,9 +154,8 @@ def initialise_simulation(seed):
             # Generate a random speed between 0 and the maximum initial speed
             fmagnitude = random.uniform(min_speed, max_speed)
         # Use the random speed for the velocity.
-            vec3Normalize(fx, fy, fz)
-            vec3Mult(fx, fy, fz, fmagnitude)
-
+            fx, fy, fz=vec3Normalize(fx, fy, fz)
+            fx, fy, fz=vec3Mult(fx, fy, fz, fmagnitude)
         # Set these for the agent.
             instance.setVariableFloat("fx", fx)
             instance.setVariableFloat("fy", fy)
