@@ -86,8 +86,8 @@ def initialise_simulation(seed):
     init_sum = 0
     result_sum = 0
     for i in range(100):
-        init = i/10
-        init_offset = 1 - i/50
+        init = int(i/10)
+        init_offset = int(1 - i/50)
         init_sum += init
         result_sum += env.getPropertyUInt("POPULATION_TO_GENERATE") * init + init_offset * ((env.getPropertyUInt("POPULATION_TO_GENERATE")-1)*env.getPropertyUInt("POPULATION_TO_GENERATE")/2)
         result_sum += env.getPropertyUInt("POPULATION_TO_GENERATE") * env.getPropertyUInt("STEPS") * i
