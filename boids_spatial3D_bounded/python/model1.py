@@ -1,6 +1,8 @@
 from pyflamegpu import *
+import time, sys, random, math
 import pyflamegpu.codegen
-import sys, random, math, time
+
+
 
 
 
@@ -27,7 +29,7 @@ def vec3Div(x: float, y: float, z: float, divisor: float):
     z /= divisor
 
 @pyflamegpu.device_function
-def clampPosition1(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
+def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
     x = MIN_POSITION if (x < MIN_POSITION) else x
     x = MAX_POSITION if (x > MAX_POSITION) else x
 
@@ -36,21 +38,6 @@ def clampPosition1(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITI
 
     z = MIN_POSITION if (z < MIN_POSITION) else z
     z = MAX_POSITION if (z > MAX_POSITION) else z
-
-@pyflamegpu.device_function
-def clampPosition(x: float, y: float, z: float, MIN_POSITION: float, MAX_POSITION: float):
-    if x < MIN_POSITION:
-        x = MIN_POSITION 
-    if x > MAX_POSITION:
-        x = MAX_POSITION
-    if y < MIN_POSITION:
-        y = MIN_POSITION 
-    if y > MAX_POSITION:
-        y = MAX_POSITION
-    if z < MIN_POSITION:
-        z = MIN_POSITION 
-    if z > MAX_POSITION:
-        z = MAX_POSITION
 
 
 @pyflamegpu.agent_function
@@ -117,30 +104,30 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
 
             if separation < INTERACTION_RADIUS :
                 # Update the perceived centre
-                perceived_centre_x = message_x +perceived_centre_x
-                perceived_centre_y = message_y +perceived_centre_y
-                perceived_centre_z = message_z + perceived_centre_z
+                perceived_centre_x += message_x
+                perceived_centre_y += message_y
+                perceived_centre_z += message_z
                 perceived_count += 1
 
                 # Update perceived velocity matching
                 message_fx = message.getVariableFloat("fx")
                 message_fy = message.getVariableFloat("fy")
                 message_fz = message.getVariableFloat("fz")
-                global_velocity_x = message_fx+global_velocity_x
-                global_velocity_y = message_fy+global_velocity_y
-                global_velocity_z = message_fz+global_velocity_z
+                global_velocity_x += message_fx
+                global_velocity_y += message_fy
+                global_velocity_z += message_fz
 
                 # Update collision centre
                 if separation < SEPARATION_RADIUS :  # dependant on model size
                     # Rule 3) Avoid other nearby boids (Separation)
                     normalizedSeparation = (separation / SEPARATION_RADIUS)
-                    invNormSep = 1 - normalizedSeparation
+                    invNormSep = (float(1.0) - normalizedSeparation)
                     invSqSep = invNormSep * invNormSep
 
                     collisionScale = pyflamegpu.environment.getPropertyFloat("COLLISION_SCALE")
-                    velocity_change_x += (collisionScale * (agent_x - message_x) * invSqSep)
-                    velocity_change_y += (collisionScale * (agent_y - message_y) * invSqSep)
-                    velocity_change_z += (collisionScale * (agent_z - message_z) * invSqSep)
+                    velocity_change_x += collisionScale * (agent_x - message_x) * invSqSep
+                    velocity_change_y += collisionScale * (agent_y - message_y) * invSqSep
+                    velocity_change_z += collisionScale * (agent_z - message_z) * invSqSep
 
     if (perceived_count) :
         # Divide positions/velocities by relevant counts.
@@ -171,9 +158,9 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
         match_velocity_y = global_velocity_y * MATCH_SCALE
         match_velocity_z = global_velocity_z * MATCH_SCALE
 
-        velocity_change_x += (match_velocity_x - agent_fx)
-        velocity_change_y += (match_velocity_y - agent_fy)
-        velocity_change_z += (match_velocity_z - agent_fz)
+        velocity_change_x += match_velocity_x - agent_fx
+        velocity_change_y += match_velocity_y - agent_fy
+        velocity_change_z += match_velocity_z - agent_fz
 
 
     # Global scale of velocity change
@@ -189,7 +176,7 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     if agent_fscale > 1 : 
         vec3Div(agent_fx, agent_fy, agent_fz, agent_fscale)
     
-    minSpeed = 0.5
+    minSpeed = float(0.5)
     if agent_fscale < minSpeed :
         # Normalise
         vec3Div(agent_fx, agent_fy, agent_fz, agent_fscale)
@@ -203,18 +190,18 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
     minPosition = pyflamegpu.environment.getPropertyFloat("MIN_POSITION")
     maxPosition = pyflamegpu.environment.getPropertyFloat("MAX_POSITION")
 
-    if ((agent_x - minPosition) < wallInteractionDistance) :
+    if (agent_x - minPosition < wallInteractionDistance) :
         agent_fx += wallSteerStrength
-    if ((agent_y - minPosition) < wallInteractionDistance) :
+    if (agent_y - minPosition < wallInteractionDistance) :
         agent_fy += wallSteerStrength
-    if ((agent_z - minPosition) < wallInteractionDistance) :
+    if (agent_z - minPosition < wallInteractionDistance) :
         agent_fz += wallSteerStrength
 
-    if ((maxPosition - agent_x) < wallInteractionDistance) :
+    if (maxPosition - agent_x < wallInteractionDistance) :
         agent_fx -= wallSteerStrength
-    if ((maxPosition - agent_y) < wallInteractionDistance) :
+    if (maxPosition - agent_y < wallInteractionDistance) :
         agent_fy -= wallSteerStrength
-    if ((maxPosition - agent_z) < wallInteractionDistance) :
+    if (maxPosition - agent_z < wallInteractionDistance) :
         agent_fz -= wallSteerStrength
 
         # Apply the velocity
@@ -237,32 +224,30 @@ def inputdata(message_in: pyflamegpu.MessageSpatial3D, message_out: pyflamegpu.M
 
     return pyflamegpu.ALIVE
 
+
+
 def create_model():
 #   创建模型，并且起名
-    model = pyflamegpu.ModelDescription("Boids Spatial3D (Python)")
+    model = pyflamegpu.ModelDescription("Boids Spatial3D python RTC")
     return model
 
 def define_environment(model):
 #   创建环境，给出一些不受模型影响的外生变量
     env = model.Environment()
+# Population size to generate, if no agents are loaded from disk    
     env.newPropertyUInt("POPULATION_TO_GENERATE", 4000)
-
 # Environment Bounds
     env.newPropertyFloat("MIN_POSITION", -0.5)
     env.newPropertyFloat("MAX_POSITION", +0.5)
-
 # Initialisation parameter(s)
     env.newPropertyFloat("MAX_INITIAL_SPEED", 1.0)
     env.newPropertyFloat("MIN_INITIAL_SPEED", 0.1)
-
 # Interaction radius
     env.newPropertyFloat("INTERACTION_RADIUS", 0.05)
     env.newPropertyFloat("SEPARATION_RADIUS", 0.01)
-
 # Global Scalers
     env.newPropertyFloat("TIME_SCALE", 0.0005)
     env.newPropertyFloat("GLOBAL_SCALE", 0.15)
-
 # Rule scalers
     env.newPropertyFloat("STEER_SCALE", 0.055)
     env.newPropertyFloat("COLLISION_SCALE", 10.0)
@@ -270,22 +255,22 @@ def define_environment(model):
     return env
 
 def define_messages(model, env):
-# Location message
+#   创建信息，名为location，为agent之间传递的信息变量，还没太明白信息的作用，还需要琢磨下
     message = model.newMessageSpatial3D("location")
     message.newVariableID("id")
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
     message.setMax(env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"))
-
-# message.newVariable<float>("x")
-# message.newVariable<float>("y")
-# message.newVariable<float>("z")
+#    message.newVariableFloat("x")
+#    message.newVariableFloat("y")
+#    message.newVariableFloat("z")
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
     message.newVariableFloat("fz")
 
+
 def define_agents(model):
-# Boid agent
+#   创建agent，名为point，是agent自己的变量和函数。
     agent = model.newAgent("Boid")
     agent.newVariableFloat("x")
     agent.newVariableFloat("y")
@@ -299,6 +284,7 @@ def define_agents(model):
     agent.newRTCFunction("inputdata", inputdata_translated).setMessageInput("location")
 
 def define_execution_order(model):
+#   引入层主要目的是确定agent行动的顺序。
     layer = model.newLayer()
     layer.addAgentFunction("Boid", "outputdata")
     layer = model.newLayer()
@@ -313,7 +299,6 @@ def initialise_simulation(seed):
 #   初始化cuda模拟
     cudaSimulation = pyflamegpu.CUDASimulation(model)
     cudaSimulation.initialise(sys.argv)
-    
 
 #   设置可视化
     if pyflamegpu.VISUALISATION:
@@ -345,10 +330,11 @@ def initialise_simulation(seed):
         ui.newEnvironmentPropertyDragFloat("MATCH_SCALE", 0.0, 10.0, 0.001)
         visualisation.activate()
 
-    
 
+
+#   如果未提供 xml 模型文件，则生成一个填充。
     if not cudaSimulation.SimulationConfig().input_file:
-    # Uniformly distribute agents within space, with uniformly distributed initial velocity.
+#   在空间内均匀分布agent，具有均匀分布的初始速度。
         random.seed(cudaSimulation.SimulationConfig().random_seed)
         min_pos = env.getPropertyFloat("MIN_POSITION")
         max_pos = env.getPropertyFloat("MAX_POSITION")
@@ -358,37 +344,29 @@ def initialise_simulation(seed):
         population = pyflamegpu.AgentVector(model.Agent("Boid"), populationSize)
         for i in range(populationSize):
             instance = population[i]
-        # Agent position in space
-            instance.setVariableFloat("x", random.uniform(min_pos, max_pos))
-            instance.setVariableFloat("y", random.uniform(min_pos, max_pos))
-            instance.setVariableFloat("z", random.uniform(min_pos, max_pos))
+            instance.setVariableFloat("x",  random.uniform(min_pos, max_pos))
+            instance.setVariableFloat("y",  random.uniform(min_pos, max_pos))
+            instance.setVariableFloat("z",  random.uniform(min_pos, max_pos))
 
-        # Generate a random velocity direction
             fx = random.uniform(-1, 1)
             fy = random.uniform(-1, 1)
             fz = random.uniform(-1, 1)
-        # Generate a random speed between 0 and the maximum initial speed
+
             fmagnitude = random.uniform(min_speed, max_speed)
-        # Use the random speed for the velocity.
+
             vec3Normalize(fx, fy, fz)
             vec3Mult(fx, fy, fz, fmagnitude)
 
-        # Set these for the agent.
             instance.setVariableFloat("fx", fx)
             instance.setVariableFloat("fy", fy)
             instance.setVariableFloat("fz", fz)
 
         cudaSimulation.setPopulationData(population)
-    # Execution
-        cudaSimulation.simulate()
-
-# Export Pop (optional)
-# cudaSimulation.exportData("end.xml")
+    cudaSimulation.simulate()
 
 #    if pyflamegpu.VISUALISATION:
+    # 模拟完成后保持可视化窗口处于活动状态
 #        visualisation.join()
-
-# Ensure profiling / memcheck work correctly
     pyflamegpu.cleanup()
 
 if __name__ == "__main__":
