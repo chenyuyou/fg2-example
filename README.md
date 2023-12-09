@@ -1,9 +1,8 @@
 ## 更新：
 
 2023年12月9日
-circles_spatial2D模型的python版本有问题，官方还没给出答案。
-
-boids_spatial3D_bounded模型的python版本问题7月份已经解决，未记录！
+1. circles_spatial2D模型的python版本有问题，官方还没给出答案。
+2. boids_spatial3D_bounded模型的python版本问题7月份已经解决，未记录！
 
 2023年7月27日
 完成了pd_punish模型。
