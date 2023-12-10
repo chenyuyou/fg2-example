@@ -1,3 +1,13 @@
+## c++ 和 cuda编译
+
+配置编译
+
+cmake .. -A x64 -G "Visual Studio 17 2022" -DCMAKE_CUDA_ARCHITECTURES=86 -DFLAMEGPU_BUILD_PYTHON=ON -DFLAMEGPU_VISUALISATION=ON
+
+编译
+
+cmake --build . --config Release --target flamegpu boids_bruteforce --verbose -j 24
+
 ## 更新：
 
 2023年12月9日
