@@ -22,7 +22,7 @@ def vec3Normalize(x, y, z):
     return x, y, z
 
 def create_model():
-    model = pyflamegpu.ModelDescription("Boids_BruteForce (RTC)")
+    model = pyflamegpu.ModelDescription("Boids_Spatial3D_wrapped")
     return model
 
 def define_environment(model):
@@ -54,13 +54,11 @@ def define_environment(model):
 
 def define_messages(model, env):
     message = model.newMessageSpatial3D("location")
+    message.newVariableID("id")
 # Set the range and bounds.
     message.setRadius(env.getPropertyFloat("INTERACTION_RADIUS"))
     message.setMin(env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"), env.getPropertyFloat("MIN_POSITION"))
     message.setMax(env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"), env.getPropertyFloat("MAX_POSITION"))
-# A message to hold the location of an agent.
-    message.newVariableID("id")
-# X Y Z are implicit.
 
     message.newVariableFloat("fx")
     message.newVariableFloat("fy")
@@ -80,10 +78,15 @@ def define_agents(model):
     agent.newRTCFunction("inputdata", inputdata).setMessageInput("location")
 
 def define_execution_order(model):
-# Layer #1
-    model.newLayer().addAgentFunction("Boid", "outputdata")
-# Layer #2
-    model.newLayer().addAgentFunction("Boid", "inputdata")
+#   引入层主要目的是确定agent行动的顺序。
+    layer = model.newLayer()
+    layer.addAgentFunction("Boid", "outputdata")
+    layer = model.newLayer()
+    layer.addAgentFunction("Boid", "inputdata")
+
+    # 两种方式都行
+#    model.newLayer().addAgentFunction("Boid", "outputdata")
+#    model.newLayer().addAgentFunction("Boid", "inputdata")
 
 def initialise_simulation(seed):
     model = create_model()
@@ -175,11 +178,17 @@ def initialise_simulation(seed):
 #        visualisation.join()
 
 # Ensure profiling / memcheck work correctly
-    pyflamegpu.cleanup()
+#    pyflamegpu.cleanup()
 
 if __name__ == "__main__":
-    start=time.time()
-    initialise_simulation(64)
-    end=time.time()
-    print(end-start)
+    import os
+    start = time.time()
+    # 获取 4 个随机字节作为种子
+    random_bytes = os.urandom(4)
+    # 将字节转换为整数
+    random_seed = int.from_bytes(random_bytes, byteorder='big')
+    print(f"Using random seed: {random_seed}")
+    initialise_simulation(random_seed)
+    end = time.time()
+    print(end - start)
     exit()

@@ -1,5 +1,5 @@
 """
-    输出捕食者的位置，不需要输入变量。
+    获取当前捕食者的 ID, x, y 坐标，并通过 FLAMEGPU->message_out 将这些信息输出到 predator_location_message 消息中。
 """
 pred_output_location = r"""
 FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::MessageSpatial2D) {

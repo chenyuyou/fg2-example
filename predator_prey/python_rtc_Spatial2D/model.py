@@ -41,11 +41,12 @@ def define_messages(model):
     """
       Location messages
     """      
+    #  
     message = model.newMessageBruteForce("predator_location_message")
     message.newVariableID("id")
     message.newVariableFloat("x")
     message.newVariableFloat("y")
-        
+    # 输出捕食者的位置信息
     message = model.newMessageBruteForce("prey_location_message")
     message.newVariableID("id")
     message.newVariableFloat("x")
@@ -88,6 +89,7 @@ def define_agents(model):
     agent.newVariableFloat("type")
     
     # Assign its functions
+    #  输出捕食者的位置信息
     fn = agent.newRTCFunction("prey_output_location", prey_output_location)
     fn.setMessageOutput("prey_location_message")
 

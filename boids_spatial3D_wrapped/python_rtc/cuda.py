@@ -1,6 +1,9 @@
 outputdata=r'''
 FLAMEGPU_AGENT_FUNCTION(outputdata, flamegpu::MessageNone, flamegpu::MessageSpatial3D) {
-    // Output each agents publicly visible properties.
+//宏定义了一个名为 outputdata 的代理函数。第一个参数是函数名。
+//第二个参数 flamegpu::MessageNone 表示这个函数不读取任何特定类型的消息作为输入。
+//第三个参数 flamegpu::MessageSpatial3D 表示这个函数会输出一种名为 location 的、使用 Spatial3D 策略进行通信的消息
+
     FLAMEGPU->message_out.setVariable<flamegpu::id_t>("id", FLAMEGPU->getID());
     FLAMEGPU->message_out.setVariable<float>("x", FLAMEGPU->getVariable<float>("x"));
     FLAMEGPU->message_out.setVariable<float>("y", FLAMEGPU->getVariable<float>("y"));
