@@ -315,7 +315,7 @@ def run_simulation():
     """
     # Initialise the simulation
     [cudaSimulation, pop_tracker] = initialise_simulation(num_prey = 200, num_predators = 50, num_grass = 0, seed = 64)
-    cudaSimulation.SimulationConfig().steps = 1600
+    cudaSimulation.SimulationConfig().steps = 160
 
     # Run the simulation
     pop_tracker.reset()

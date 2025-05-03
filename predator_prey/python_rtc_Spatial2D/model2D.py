@@ -1,7 +1,7 @@
 import pyflamegpu
 import sys, random, math
 import matplotlib.pyplot as plt
-from cuda import *
+from cuda2D import *
 
 def create_model():
     model = pyflamegpu.ModelDescription("predator_prey2D")
@@ -42,33 +42,62 @@ def define_messages(model):
       Location messages
     """      
     #  
-    message = model.newMessageBruteForce("predator_location_message")
-    message.newVariableID("id")
-    message.newVariableFloat("x")
-    message.newVariableFloat("y")
+    predator_message  = model.newMessageSpatial2D("predator_location_message")
+    predator_message .newVariableID("id")
+    # 设置消息的范围，这里可以使用环境中定义的相互作用半径
+    predator_message .setRadius(model.Environment().getPropertyFloat("PRED_PREY_INTERACTION_RADIUS"))
     # 输出捕食者的位置信息
-    message = model.newMessageBruteForce("prey_location_message")
-    message.newVariableID("id")
-    message.newVariableFloat("x")
-    message.newVariableFloat("y")
-    
-    message = model.newMessageBruteForce("grass_location_message")
-    message.newVariableID("id")
-    message.newVariableFloat("x")
-    message.newVariableFloat("y")
+    predator_message.setMinX(model.Environment().getPropertyFloat("MIN_POSITION"))
+    predator_message.setMaxX(model.Environment().getPropertyFloat("MAX_POSITION"))
+    predator_message.setMinY(model.Environment().getPropertyFloat("MIN_POSITION"))
+    predator_message.setMaxY(model.Environment().getPropertyFloat("MAX_POSITION"))
 
+
+    prey_message = model.newMessageSpatial2D("prey_location_message")
+    prey_message.newVariableID("id")
+    prey_message.setRadius(model.Environment().getPropertyFloat("PRED_PREY_INTERACTION_RADIUS"))
+    prey_message.setMinX(model.Environment().getPropertyFloat("MIN_POSITION"))
+    prey_message.setMaxX(model.Environment().getPropertyFloat("MAX_POSITION"))
+    prey_message.setMinY(model.Environment().getPropertyFloat("MIN_POSITION"))
+    prey_message.setMaxY(model.Environment().getPropertyFloat("MAX_POSITION"))
+
+
+    grass_message = model.newMessageSpatial2D("grass_location_message")
+    grass_message.newVariableID("id")
+    grass_message.setRadius(model.Environment().getPropertyFloat("GRASS_EAT_DISTANCE"))
+    grass_message.setMinX(model.Environment().getPropertyFloat("MIN_POSITION"))
+    grass_message.setMaxX(model.Environment().getPropertyFloat("MAX_POSITION"))
+    grass_message.setMinY(model.Environment().getPropertyFloat("MIN_POSITION"))
+    grass_message.setMaxY(model.Environment().getPropertyFloat("MAX_POSITION"))
 
     """
       Agent eaten messages
     """
         
-    message = model.newMessageBruteForce("prey_eaten_message")
-    message.newVariableID("id")
-    message.newVariableInt("pred_id")
+    prey_eaten_message = model.newMessageSpatial2D("prey_eaten_message")
+    prey_eaten_message.newVariableID("id")
+    prey_eaten_message.newVariableInt("pred_id")
+    prey_eaten_message.setMinX(model.Environment().getPropertyFloat("MIN_POSITION"))
+    prey_eaten_message.setMaxX(model.Environment().getPropertyFloat("MAX_POSITION"))
+    prey_eaten_message.setMinY(model.Environment().getPropertyFloat("MIN_POSITION"))
+    prey_eaten_message.setMaxY(model.Environment().getPropertyFloat("MAX_POSITION"))
+    # 设置 grass_eaten_message 的半径
+    # 可以使用一个较小的值，或者与草被吃的距离相关的值
+    prey_eaten_message.setRadius(2)
+#    prey_eaten_message.setRadius(model.Environment().getPropertyFloat("PRED_KILL_DISTANCE")) 
 
-    message = model.newMessageBruteForce("grass_eaten_message")
-    message.newVariableID("id")
-    message.newVariableInt("prey_id")
+
+
+    grass_eaten_message = model.newMessageSpatial2D("grass_eaten_message")
+    grass_eaten_message.newVariableID("id")
+    grass_eaten_message.newVariableInt("prey_id")
+    grass_eaten_message.setMinX(model.Environment().getPropertyFloat("MIN_POSITION"))
+    grass_eaten_message.setMaxX(model.Environment().getPropertyFloat("MAX_POSITION"))
+    grass_eaten_message.setMinY(model.Environment().getPropertyFloat("MIN_POSITION"))
+    grass_eaten_message.setMaxY(model.Environment().getPropertyFloat("MAX_POSITION"))
+    # 设置 grass_eaten_message 的半径
+    grass_eaten_message.setRadius(0.1)
+#    grass_eaten_message.setRadius(model.Environment().getPropertyFloat("GRASS_EAT_DISTANCE")) 
 
 
 def define_agents(model):
@@ -242,9 +271,9 @@ def define_execution_order(model):
 
 def initialise_simulation(num_prey, num_predators, num_grass, seed):
     model = create_model()
+    define_environment(model)
     define_messages(model)
     define_agents(model)
-    define_environment(model)
     define_execution_order(model)
 
     # Set up a population tracker for logging/plotting
@@ -317,7 +346,7 @@ def run_simulation():
     """
     # Initialise the simulation
     [cudaSimulation, pop_tracker] = initialise_simulation(num_prey = 200, num_predators = 50, num_grass = 0, seed = 64)
-    cudaSimulation.SimulationConfig().steps = 1600
+    cudaSimulation.SimulationConfig().steps = 160
 
     # Run the simulation
     pop_tracker.reset()

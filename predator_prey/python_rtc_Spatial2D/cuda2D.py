@@ -30,7 +30,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageSpatial2D, flamegpu::
     float closest_prey_distance = PRED_PREY_INTERACTION_RADIUS;
     int is_a_prey_in_range = 0;
 
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(predator_x, predator_y)) {
         // Fetch prey location
         const float prey_x = msg.getVariable<float>("x");
         const float prey_y = msg.getVariable<float>("y");
@@ -64,7 +64,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageSpatial2D, flamegpu::
     捕食者找出附近的其他捕猎者，计算出叠加的加速度，并以此改方向适量。需要的输入变量为猎物的位置。
 """
 pred_avoid = r"""
-FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     const float SAME_SPECIES_AVOIDANCE_RADIUS = FLAMEGPU->environment.getProperty<float>("SAME_SPECIES_AVOIDANCE_RADIUS");
     // Fetch this predator's position
     const float predator_x = FLAMEGPU->getVariable<float>("x");
@@ -73,7 +73,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::Messa
     float avoid_velocity_y = 0.0f;
 
     // Add a steering factor away from each other predator. Strength increases with closeness.
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(predator_x, predator_y)) {
         // Fetch location of other predator
         const float other_predator_x = msg.getVariable<float>("x");
         const float other_predator_y = msg.getVariable<float>("y");
@@ -154,13 +154,15 @@ FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone)
     捕食者匹配猎物输出的信息，如果匹配，则增加生命，如果不匹配，则减少生命。需要的输入变量为猎物输出的捕食者匹配信息，无输出信息。
 """
 pred_eat_or_starve = r"""
-FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     const flamegpu::id_t predator_id = FLAMEGPU->getID();
     int predator_life = FLAMEGPU->getVariable<int>("life");
     int isDead = 0;
+    const float prey_x = FLAMEGPU->getVariable<float>("x");
+    const float prey_y = FLAMEGPU->getVariable<float>("y");
 
     // Iterate prey_eaten messages to see if this predator ate a prey
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(prey_x, prey_y)) {
         if (msg.getVariable<int>("pred_id") == predator_id) {
             predator_life += FLAMEGPU->environment.getProperty<unsigned int>("GAIN_FROM_FOOD_PREDATOR");
         }
@@ -213,7 +215,7 @@ FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::Mess
     输出猎物的位置，不需要输入变量。
 """
 prey_output_location = r"""
-FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
+FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::MessageSpatial2D) {
     const flamegpu::id_t id = FLAMEGPU->getID();
     const float x = FLAMEGPU->getVariable<float>("x");
     const float y = FLAMEGPU->getVariable<float>("y");
@@ -228,7 +230,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::M
     猎物躲避捕食者。输入为捕食者信息，无输出。
 """
 prey_avoid_pred = r"""
-FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
     // Fetch this prey's position
     const float prey_x = FLAMEGPU->getVariable<float>("x");
@@ -237,7 +239,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::
     float avoid_velocity_y = 0.0f;
 
     // Add a steering factor away from each predator. Strength increases with closeness.
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(prey_x, prey_y)) {
         // Fetch location of predator
         const float predator_x = msg.getVariable<float>("x");
         const float predator_y = msg.getVariable<float>("y");
@@ -266,7 +268,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::
     猎物聚集。输入为其他猎物的信息，无输出信息。
 """
 prey_flock = r"""
-FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     const float PREY_GROUP_COHESION_RADIUS = FLAMEGPU->environment.getProperty<float>("PREY_GROUP_COHESION_RADIUS");
     const float SAME_SPECIES_AVOIDANCE_RADIUS = FLAMEGPU->environment.getProperty<float>("SAME_SPECIES_AVOIDANCE_RADIUS");
     const flamegpu::id_t prey_id = FLAMEGPU->getID();
@@ -281,7 +283,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::Messa
     float avoid_velocity_y = 0.0f;
     int group_centre_count = 0;
 
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(prey_x, prey_y)) {
         const int   other_prey_id = msg.getVariable<int>("id");
         const float other_prey_x = msg.getVariable<float>("x");
         const float other_prey_y = msg.getVariable<float>("y");
@@ -375,7 +377,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_move, flamegpu::MessageNone, flamegpu::MessageNone)
     猎物找出距离最近的捕食者，且与该捕食者距离小于给定的捕食距离，标记猎物被吃。输入为捕食者信息，输出为特定的距离猎物最近的捕食者。
 """
 prey_eaten = r"""
-FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
+FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageSpatial2D, flamegpu::MessageSpatial2D) {
     const float PRED_KILL_DISTANCE = FLAMEGPU->environment.getProperty<float>("PRED_KILL_DISTANCE");
     const flamegpu::id_t id = FLAMEGPU->getID();
     int eaten = 0;
@@ -385,7 +387,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::Messa
     const float prey_y = FLAMEGPU->getVariable<float>("y");
 
     // Iterate predator_location messages to find the closest predator
-    for (const auto& msg : FLAMEGPU->message_in) {
+    for (const auto& msg : FLAMEGPU->message_in(prey_x, prey_y)) {
         // Fetch location of predator
         const float predator_x = msg.getVariable<float>("x");
         const float predator_y = msg.getVariable<float>("y");
@@ -447,7 +449,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_reproduction, flamegpu::MessageNone, flamegpu::Mess
     输出草的位置，不需要输入变量。
 """
 grass_output_location = r"""
-FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
+FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::MessageSpatial2D) {
     // Exercise 3.1 : Set the variables for the grass_location message
     const flamegpu::id_t id = FLAMEGPU->getID();
     const float x = FLAMEGPU->getVariable<float>("x");
@@ -463,7 +465,7 @@ FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::
     草找出距离最近的猎物（食草），且与该猎物距离小于给定的吃草距离，标记草被吃。输入为猎物的信息，输出为特定的距离草最近的猎物。
 """
 grass_eaten = r"""
-FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
+FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageSpatial2D, flamegpu::MessageSpatial2D) {
     const float grass_x = FLAMEGPU->getVariable<float>("x");
     const float grass_y = FLAMEGPU->getVariable<float>("y");
     int available = FLAMEGPU->getVariable<int>("available");
@@ -474,7 +476,7 @@ FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::Mess
         int eaten = 0;
 
         // Iterate predator_location messages to find the closest predator
-        for (const auto& msg : FLAMEGPU->message_in) {
+        for (const auto& msg : FLAMEGPU->message_in(grass_x, grass_y)) {
             // Fetch location of prey
             const float prey_x = msg.getVariable<float>("x");
             const float prey_y = msg.getVariable<float>("y");
@@ -510,13 +512,15 @@ FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::Mess
     草匹配猎物（食草）的信息，如果匹配，则猎物增加生命，如果不匹配，则减少生命。需要的输入变量为草输出的猎物的匹配信息，无输出信息。
 """
 prey_eat_or_starve = r"""
-FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
+FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageSpatial2D, flamegpu::MessageNone) {
     int isDead = 0;
     const flamegpu::id_t id = FLAMEGPU->getID();
     const int life = FLAMEGPU->getVariable<int>("life");
-
+    const float prey_x = FLAMEGPU->getVariable<float>("x");
+    const float prey_y = FLAMEGPU->getVariable<float>("y");
     // Iterate the grass eaten messages 
-    for (const auto& msg : FLAMEGPU->message_in)
+//    for (const auto& msg : FLAMEGPU->message_in)
+    for (const auto& msg : FLAMEGPU->message_in(prey_x, prey_y))   
     {
         // If the grass eaten message indicates that this prey ate some grass then increase the preys life by adding energy
         if (id == msg.getVariable<int>("prey_id")) {
