@@ -2,7 +2,6 @@
     输出捕食者的位置，不需要输入变量。
 """
 pred_output_location = r"""
-// 这个函数负责将捕食者智能体当前的位置信息（ID, x坐标, y坐标）输出到消息中。
 FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     const flamegpu::id_t id = FLAMEGPU->getID();
     const float x = FLAMEGPU->getVariable<float>("x");
@@ -19,31 +18,28 @@ FLAMEGPU_AGENT_FUNCTION(pred_output_location, flamegpu::MessageNone, flamegpu::M
     捕食者找出最近猎物，计算两者之间的距离的矢量。需要的输入变量为猎物的位置。
 """
 pred_follow_prey = r"""
-// 捕食者根据接收到的猎物位置信息，找出最近的猎物，并计算一个指向该猎物的转向向量。
-    // 获取捕食者与猎物之间的交互半径 PRED_PREY_INTERACTION_RADIUS。
-    
 FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
-    // 获取当前捕食者的 x 坐标和 y 坐标。
+    // Fetch the predator's position
     const float predator_x = FLAMEGPU->getVariable<float>("x");
     const float predator_y = FLAMEGPU->getVariable<float>("y");
 
-    // 初始化最近猎物的坐标、距离以及是否在范围内的标志。
+    // Find the closest prey by iterating the prey_location messages
     float closest_prey_x = 0.0f;
     float closest_prey_y = 0.0f;
     float closest_prey_distance = PRED_PREY_INTERACTION_RADIUS;
     int is_a_prey_in_range = 0;
-    // 遍历所有接收到的猎物位置消息。
+
     for (const auto& msg : FLAMEGPU->message_in) {
         // Fetch prey location
         const float prey_x = msg.getVariable<float>("x");
         const float prey_y = msg.getVariable<float>("y");
 
-    //    计算当前捕食者与每个猎物之间的距离
+        // Check if prey is within sight range of predator
         const float dx = predator_x - prey_x;
         const float dy = predator_y - prey_y;
         const float separation = sqrt(dx * dx + dy * dy);
-        // 如果距离小于 PRED_PREY_INTERACTION_RADIUS 并且小于当前最近猎物的距离，则更新最近猎物的坐标和距离，并将标志设置为1。
+
         if (separation < closest_prey_distance) {
             closest_prey_x = prey_x;
             closest_prey_y = prey_y;
@@ -52,15 +48,14 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu:
         }
     }
 
-    // 如果在范围内找到了猎物，计算一个从捕食者指向最近猎物的向量（steer_x, steer_y）
-    // 将计算出的转向向量设置到捕食者的 steer_x 和 steer_y 变量中。
+    // If there was a prey in range, steer the predator towards it
     if (is_a_prey_in_range) {
         const float steer_x = closest_prey_x - predator_x;
         const float steer_y = closest_prey_y - predator_y;
         FLAMEGPU->setVariable<float>("steer_x", steer_x);
         FLAMEGPU->setVariable<float>("steer_y", steer_y);
     }
-    // 返回 flamegpu::ALIVE
+
     return flamegpu::ALIVE;
 }
 """
@@ -69,40 +64,35 @@ FLAMEGPU_AGENT_FUNCTION(pred_follow_prey, flamegpu::MessageBruteForce, flamegpu:
     捕食者找出附近的其他捕猎者，计算出叠加的加速度，并以此改方向适量。需要的输入变量为猎物的位置。
 """
 pred_avoid = r"""
-// 捕食者根据接收到的其他捕食者位置信息，计算一个远离其他捕食者的转向向量，以避免碰撞。
-// 输入 predator_location_message 消息，包含其他捕食者的位置信息
-// 获取同类避让半径 SAME_SPECIES_AVOIDANCE_RADIUS
 FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float SAME_SPECIES_AVOIDANCE_RADIUS = FLAMEGPU->environment.getProperty<float>("SAME_SPECIES_AVOIDANCE_RADIUS");
-    // 获取当前捕食者的 x 坐标和 y 坐标
+    // Fetch this predator's position
     const float predator_x = FLAMEGPU->getVariable<float>("x");
     const float predator_y = FLAMEGPU->getVariable<float>("y");
-    // 初始化避让速度向量 avoid_velocity_x 和 avoid_velocity_y
     float avoid_velocity_x = 0.0f;
     float avoid_velocity_y = 0.0f;
 
-    // 遍历所有接收到的其他捕食者位置消息。
+    // Add a steering factor away from each other predator. Strength increases with closeness.
     for (const auto& msg : FLAMEGPU->message_in) {
-        // 获取其他捕食者的 x 坐标和 y 坐标。
+        // Fetch location of other predator
         const float other_predator_x = msg.getVariable<float>("x");
         const float other_predator_y = msg.getVariable<float>("y");
 
-        // 计算当前捕食者与该捕食者之间的距离
+        // Check if the two predators are within interaction radius
         const float dx = predator_x - other_predator_x;
         const float dy = predator_y - other_predator_y;
         const float separation = sqrt(dx * dx + dy * dy);
-        // 如果距离小于 SAME_SPECIES_AVOIDANCE_RADIUS 且大于0（避免自身），则根据距离的倒数计算一个远离该捕食者的避让向量，并累加到 avoid_velocity 中。
+
         if (separation < SAME_SPECIES_AVOIDANCE_RADIUS && separation > 0.0f) {
             avoid_velocity_x += SAME_SPECIES_AVOIDANCE_RADIUS / separation * dx;
             avoid_velocity_y += SAME_SPECIES_AVOIDANCE_RADIUS / separation * dy;
         }
     }
-    // 获取当前捕食者的转向向量 steer_x 和 steer_y，并将计算出的避让向量叠加到其中。
+
     float steer_x = FLAMEGPU->getVariable<float>("steer_x");
     float steer_y = FLAMEGPU->getVariable<float>("steer_y");
     steer_x += avoid_velocity_x;
     steer_y += avoid_velocity_y;
-    // 更新捕食者的 steer_x 和 steer_y 变量。
     FLAMEGPU->setVariable<float>("steer_x", steer_x);
     FLAMEGPU->setVariable<float>("steer_y", steer_y);
 
@@ -114,14 +104,11 @@ FLAMEGPU_AGENT_FUNCTION(pred_avoid, flamegpu::MessageBruteForce, flamegpu::Messa
     捕食者移动，损失生命。无需信息输入输出。
 """
 pred_move = r"""
-//  捕食者根据其转向向量和当前速度进行移动，并在环境边界内限制其位置，同时消耗生命值。
-// 获取环境边界信息 MIN_POSITION 和 MAX_POSITION，时间步长 DELTA_TIME，以及捕食者的速度优势 PRED_SPEED_ADVANTAGE。
 FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float MIN_POSITION = FLAMEGPU->environment.getProperty<float>("MIN_POSITION");
     const float MAX_POSITION = FLAMEGPU->environment.getProperty<float>("MAX_POSITION");
     const float DELTA_TIME = FLAMEGPU->environment.getProperty<float>("DELTA_TIME");
     const float PRED_SPEED_ADVANTAGE = FLAMEGPU->environment.getProperty<float>("PRED_SPEED_ADVANTAGE");
-    // 获取当前捕食者的位置 (x, y) 和速度 (vx, vy)，以及转向向量 (steer_x, steer_y) 和生命值 (life)。
     float predator_x = FLAMEGPU->getVariable<float>("x");
     float predator_y = FLAMEGPU->getVariable<float>("y");
     float predator_vx = FLAMEGPU->getVariable<float>("vx");
@@ -130,33 +117,33 @@ FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone)
     const float predator_steer_y = FLAMEGPU->getVariable<float>("steer_y");
     const float predator_life = FLAMEGPU->getVariable<int>("life");
 
-    // 将转向向量累加到当前速度上
+    // Integrate steering forces and cap velocity
     predator_vx += predator_steer_x;
     predator_vy += predator_steer_y;
-    // 限制速度的大小（标准化速度向量）
+
     float speed = sqrt(predator_vx * predator_vx + predator_vy * predator_vy);
     if (speed > 1.0f) {
         predator_vx /= speed;
         predator_vy /= speed;
     }
 
-    // 根据速度和时间步长更新捕食者的位置。
+    // Integrate velocity
     predator_x += predator_vx * DELTA_TIME * PRED_SPEED_ADVANTAGE;
     predator_y += predator_vy * DELTA_TIME * PRED_SPEED_ADVANTAGE;
 
-    // 将捕食者的位置限制在环境边界内
+    // Bound the position within the environment 
     predator_x = predator_x < MIN_POSITION ? MIN_POSITION : predator_x;
     predator_x = predator_x > MAX_POSITION ? MAX_POSITION : predator_x;
     predator_y = predator_y < MIN_POSITION ? MIN_POSITION : predator_y;
     predator_y = predator_y > MAX_POSITION ? MAX_POSITION : predator_y;
 
-    // 更新捕食者的位置和速度变量。
+    // Update agent state
     FLAMEGPU->setVariable<float>("x", predator_x);
     FLAMEGPU->setVariable<float>("y", predator_y);
     FLAMEGPU->setVariable<float>("vx", predator_vx);
     FLAMEGPU->setVariable<float>("vy", predator_vy);
 
-    // 将捕食者的生命值减少1
+    // Reduce life by one unit of energy
     FLAMEGPU->setVariable<int>("life", predator_life - 1);
 
     return flamegpu::ALIVE;
@@ -167,32 +154,26 @@ FLAMEGPU_AGENT_FUNCTION(pred_move, flamegpu::MessageNone, flamegpu::MessageNone)
     捕食者匹配猎物输出的信息，如果匹配，则增加生命，如果不匹配，则减少生命。需要的输入变量为猎物输出的捕食者匹配信息，无输出信息。
 """
 pred_eat_or_starve = r"""
-// 捕食者根据接收到的猎物被吃消息，如果匹配到自己吃了猎物，则增加生命值，否则生命值保持不变。如果生命值低于1，则死亡
-// 输入 prey_eaten_message 消息，包含被吃猎物的 ID 和吃掉它的捕食者的 ID。
-// 获取当前捕食者的 ID 和生命值。
 FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const flamegpu::id_t predator_id = FLAMEGPU->getID();
     int predator_life = FLAMEGPU->getVariable<int>("life");
-    // 初始化死亡标志 isDead 为0。
     int isDead = 0;
 
-    // 遍历所有接收到的 prey_eaten_message 消息。
-    // 如果消息中的捕食者 ID 与当前捕食者 ID 匹配，说明当前捕食者吃掉了猎物，增加生命值（增加量由环境属性 GAIN_FROM_FOOD_PREDATOR 决定）。
+    // Iterate prey_eaten messages to see if this predator ate a prey
     for (const auto& msg : FLAMEGPU->message_in) {
         if (msg.getVariable<int>("pred_id") == predator_id) {
             predator_life += FLAMEGPU->environment.getProperty<unsigned int>("GAIN_FROM_FOOD_PREDATOR");
         }
     }
 
-    // 更新捕食者的生命值变量。
+    // Update agent state
     FLAMEGPU->setVariable<int>("life", predator_life);
 
-    // 如果捕食者的生命值小于1，将 isDead 设置为1
+    // Did the predator starve?
     if (predator_life < 1) {
         isDead = 1;
     }
-    
-    // 返回 flamegpu::DEAD 如果 isDead 为1，否则返回 flamegpu::ALIVE
+
     return isDead ? flamegpu::DEAD : flamegpu::ALIVE;
 }
 """
@@ -201,27 +182,19 @@ FLAMEGPU_AGENT_FUNCTION(pred_eat_or_starve, flamegpu::MessageBruteForce, flamegp
     捕食者繁殖。无需信息输入输出。
 """
 pred_reproduction = r"""
-// 捕食者根据一定的概率进行繁殖，产生一个新的捕食者智能体，并分配其初始属性，同时自身生命值减半。
-// 获取环境边界宽度 BOUNDS_WIDTH 和捕食者繁殖概率 REPRODUCE_PRED_PROB。
 FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float BOUNDS_WIDTH = FLAMEGPU->environment.getProperty<float>("BOUNDS_WIDTH");
     float random = FLAMEGPU->random.uniform<float>();
-    // 获取当前捕食者的生命值。
     const int currentLife = FLAMEGPU->getVariable<int>("life");
-    // 生成一个随机数。
-    // 如果随机数小于繁殖概率，则进行繁殖：
     if (random < FLAMEGPU->environment.getProperty<float>("REPRODUCE_PRED_PROB")) {
-        // 生成一个新的随机 ID
         int id = FLAMEGPU->random.uniform<float>() * (float)INT_MAX;
-        // 在环境边界内随机生成新捕食者的 x 和 y 坐标。
         float x = FLAMEGPU->random.uniform<float>() * BOUNDS_WIDTH - BOUNDS_WIDTH / 2.0f;
         float y = FLAMEGPU->random.uniform<float>() * BOUNDS_WIDTH - BOUNDS_WIDTH / 2.0f;
-        // 随机生成新捕食者的初始速度 (vx, vy)。
         float vx = FLAMEGPU->random.uniform<float>() * 2 - 1;
         float vy = FLAMEGPU->random.uniform<float>() * 2 - 1;
-        // 将当前捕食者的生命值减半。
+
         FLAMEGPU->setVariable<int>("life", currentLife / 2);
-// 通过 FLAMEGPU->agent_out 创建一个新的捕食者智能体，并设置其位置、类型、速度、转向向量和初始生命值（为原生命值的一半）
+// 一下代码繁殖新的捕食者
         FLAMEGPU->agent_out.setVariable<float>("x", x);
         FLAMEGPU->agent_out.setVariable<float>("y", y);
         FLAMEGPU->agent_out.setVariable<float>("type", 0.0f);
@@ -240,8 +213,6 @@ FLAMEGPU_AGENT_FUNCTION(pred_reproduction, flamegpu::MessageNone, flamegpu::Mess
     输出猎物的位置，不需要输入变量。
 """
 prey_output_location = r"""
-// 与 pred_output_location 类似，将猎物智能体当前的位置信息输出到消息中。
-// 输出 prey_location_message 消息，包含猎物的 ID、x 坐标和 y 坐标。
 FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     const flamegpu::id_t id = FLAMEGPU->getID();
     const float x = FLAMEGPU->getVariable<float>("x");
@@ -257,29 +228,25 @@ FLAMEGPU_AGENT_FUNCTION(prey_output_location, flamegpu::MessageNone, flamegpu::M
     猎物躲避捕食者。输入为捕食者信息，无输出。
 """
 prey_avoid_pred = r"""
-// 猎物根据接收到的捕食者位置信息，计算一个远离捕食者的转向向量，以避免被捕食。
-// 输入 predator_location_message 消息，包含捕食者的位置信息。
 FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PRED_PREY_INTERACTION_RADIUS = FLAMEGPU->environment.getProperty<float>("PRED_PREY_INTERACTION_RADIUS");
-    // 获取捕食者与猎物之间的交互半径 PRED_PREY_INTERACTION_RADIUS。
-    // 获取当前猎物的 x 坐标和 y 坐标。
+    // Fetch this prey's position
     const float prey_x = FLAMEGPU->getVariable<float>("x");
     const float prey_y = FLAMEGPU->getVariable<float>("y");
-    // 初始化避让速度向量 avoid_velocity_x 和 avoid_velocity_y。
     float avoid_velocity_x = 0.0f;
     float avoid_velocity_y = 0.0f;
 
-    // 遍历所有接收到的捕食者位置消息。
+    // Add a steering factor away from each predator. Strength increases with closeness.
     for (const auto& msg : FLAMEGPU->message_in) {
-        // 获取捕食者的 x 坐标和 y 坐标。
+        // Fetch location of predator
         const float predator_x = msg.getVariable<float>("x");
         const float predator_y = msg.getVariable<float>("y");
 
-        // 计算当前猎物与该捕食者之间的距离。
+        // Check if the two predators are within interaction radius
         const float dx = prey_x - predator_x;
         const float dy = prey_y - predator_y;
         const float distance = sqrt(dx * dx + dy * dy);
-        // 如果距离小于 PRED_PREY_INTERACTION_RADIUS，则根据距离计算一个远离该捕食者的避让向量，并累加到 avoid_velocity 中。
+
         if (distance < PRED_PREY_INTERACTION_RADIUS) {
             // Steer the prey away from the predator
             avoid_velocity_x += (PRED_PREY_INTERACTION_RADIUS / distance) * dx;
@@ -287,7 +254,7 @@ FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::
         }
     }
 
-    // 将计算出的避让向量设置到猎物的 steer_x 和 steer_y 变量中。
+    // Update agent state 
     FLAMEGPU->setVariable<float>("steer_x", avoid_velocity_x);
     FLAMEGPU->setVariable<float>("steer_y", avoid_velocity_y);
 
@@ -299,17 +266,13 @@ FLAMEGPU_AGENT_FUNCTION(prey_avoid_pred, flamegpu::MessageBruteForce, flamegpu::
     猎物聚集。输入为其他猎物的信息，无输出信息。
 """
 prey_flock = r"""
-// 猎物根据接收到的其他猎物位置信息，计算一个趋向群体中心和远离附近同类的转向向量，以实现聚集行为。
-// 输入 prey_location_message 消息，包含其他猎物的位置信息。
 FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     const float PREY_GROUP_COHESION_RADIUS = FLAMEGPU->environment.getProperty<float>("PREY_GROUP_COHESION_RADIUS");
     const float SAME_SPECIES_AVOIDANCE_RADIUS = FLAMEGPU->environment.getProperty<float>("SAME_SPECIES_AVOIDANCE_RADIUS");
-    // 获取猎物群体聚集半径 PREY_GROUP_COHESION_RADIUS 和同类避让半径 SAME_SPECIES_AVOIDANCE_RADIUS
-    // 获取当前猎物的 ID、x 坐标和 y 坐标
     const flamegpu::id_t prey_id = FLAMEGPU->getID();
     const float prey_x = FLAMEGPU->getVariable<float>("x");
     const float prey_y = FLAMEGPU->getVariable<float>("y");
-    // 初始化群体中心坐标、群体速度向量、避让速度向量以及群体计数。
+
     float group_centre_x = 0.0f;
     float group_centre_y = 0.0f;
     float group_velocity_x = 0.0f;
@@ -317,23 +280,21 @@ FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::Messa
     float avoid_velocity_x = 0.0f;
     float avoid_velocity_y = 0.0f;
     int group_centre_count = 0;
-    // 遍历所有接收到的其他猎物位置消息。
+
     for (const auto& msg : FLAMEGPU->message_in) {
-    // 获取其他猎物的 ID、x 坐标和 y 坐标。
         const int   other_prey_id = msg.getVariable<int>("id");
         const float other_prey_x = msg.getVariable<float>("x");
         const float other_prey_y = msg.getVariable<float>("y");
-        // 计算当前猎物与该猎物之间的距离。
         const float dx = prey_x - other_prey_x;
         const float dy = prey_y - other_prey_y;
         const float separation = sqrt(dx * dx + dy * dy);
-        // 如果距离小于 PREY_GROUP_COHESION_RADIUS 且不是自身，则将该猎物的坐标累加到群体中心坐标中，并增加群体计数。
+
         if (separation < PREY_GROUP_COHESION_RADIUS && prey_id != other_prey_id) {
             group_centre_x += other_prey_x;
             group_centre_y += other_prey_y;
             group_centre_count += 1;
 
-            // 如果距离小于 SAME_SPECIES_AVOIDANCE_RADIUS，则根据距离计算一个远离该猎物的避让向量，并累加到 avoid_velocity 中
+            // Avoidance behaviour
             if (separation < SAME_SPECIES_AVOIDANCE_RADIUS) {
                 // Was a check for separation > 0 in original - redundant?
                 avoid_velocity_x += SAME_SPECIES_AVOIDANCE_RADIUS / separation * dx;
@@ -342,19 +303,18 @@ FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::Messa
         }
     }
 
-    // 如果群体计数大于0，计算群体中心坐标的平均值，并计算一个指向群体中心的向量（group_velocity）。
+    // Compute group centre as the average of the nearby prey positions and a velocity to move towards the group centre
     if (group_centre_count > 0) {
         group_centre_x /= group_centre_count;
         group_centre_y /= group_centre_count;
         group_velocity_x = group_centre_x - prey_x;
         group_velocity_y = group_centre_y - prey_y;
     }
-    // 获取当前猎物的转向向量 steer_x 和 steer_y，并将群体速度向量和避让速度向量叠加到其中。
+
     float prey_steer_x = FLAMEGPU->getVariable<float>("steer_x");
     float prey_steer_y = FLAMEGPU->getVariable<float>("steer_y");
     prey_steer_x += group_velocity_x + avoid_velocity_x;
     prey_steer_y += group_velocity_y + avoid_velocity_y;
-    // 更新猎物的 steer_x 和 steer_y 变量。
     FLAMEGPU->setVariable<float>("steer_x", prey_steer_x);
     FLAMEGPU->setVariable<float>("steer_y", prey_steer_y);
 
@@ -365,7 +325,6 @@ FLAMEGPU_AGENT_FUNCTION(prey_flock, flamegpu::MessageBruteForce, flamegpu::Messa
     猎物移动，损失生命。无需信息输入输出。
 """
 prey_move = r"""
-// 与 pred_move 类似，猎物根据其转向向量和当前速度进行移动，并在环境边界内限制其位置，同时消耗生命值。
 FLAMEGPU_AGENT_FUNCTION(prey_move, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float MIN_POSITION = FLAMEGPU->environment.getProperty<float>("MIN_POSITION");
     const float MAX_POSITION = FLAMEGPU->environment.getProperty<float>("MAX_POSITION");
@@ -416,9 +375,6 @@ FLAMEGPU_AGENT_FUNCTION(prey_move, flamegpu::MessageNone, flamegpu::MessageNone)
     猎物找出距离最近的捕食者，且与该捕食者距离小于给定的捕食距离，标记猎物被吃。输入为捕食者信息，输出为特定的距离猎物最近的捕食者。
 """
 prey_eaten = r"""
-// 猎物根据接收到的草被吃消息，如果匹配到自己吃掉了草，则增加生命值，否则生命值保持不变。如果生命值低于1，则死亡。
-// 输入 predator_location_message 消息，包含捕食者的位置信息。
-// 输出 prey_eaten_message 消息，包含被吃猎物的 ID 和吃掉它的捕食者的 ID。此消息是可选输出
 FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
     const float PRED_KILL_DISTANCE = FLAMEGPU->environment.getProperty<float>("PRED_KILL_DISTANCE");
     const flamegpu::id_t id = FLAMEGPU->getID();
@@ -459,8 +415,6 @@ FLAMEGPU_AGENT_FUNCTION(prey_eaten, flamegpu::MessageBruteForce, flamegpu::Messa
     猎物繁殖。无需信息输入输出。
 """
 prey_reproduction = r"""
-// 猎物根据接收到的草被吃消息，如果匹配到自己吃掉了草，则增加生命值，否则生命值保持不变。如果生命值低于1，则死亡。
-// 输入 grass_eaten_message 消息，包含被吃草的 ID 和吃掉它的猎物的 ID。
 FLAMEGPU_AGENT_FUNCTION(prey_reproduction, flamegpu::MessageNone, flamegpu::MessageNone) {
     const float REPRODUCE_PREY_PROB = FLAMEGPU->environment.getProperty<float>("REPRODUCE_PREY_PROB");
     const float BOUNDS_WIDTH = FLAMEGPU->environment.getProperty<float>("BOUNDS_WIDTH");
@@ -493,7 +447,6 @@ FLAMEGPU_AGENT_FUNCTION(prey_reproduction, flamegpu::MessageNone, flamegpu::Mess
     输出草的位置，不需要输入变量。
 """
 grass_output_location = r"""
-// 与 pred_reproduction 类似，猎物根据一定的概率进行繁殖，产生一个新的猎物智能体，并分配其初始属性，同时自身生命值减半
 FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::MessageBruteForce) {
     // Exercise 3.1 : Set the variables for the grass_location message
     const flamegpu::id_t id = FLAMEGPU->getID();
@@ -510,9 +463,6 @@ FLAMEGPU_AGENT_FUNCTION(grass_output_location, flamegpu::MessageNone, flamegpu::
     草找出距离最近的猎物（食草），且与该猎物距离小于给定的吃草距离，标记草被吃。输入为猎物的信息，输出为特定的距离草最近的猎物。
 """
 grass_eaten = r"""
-// 草根据接收到的猎物位置信息，如果当前草处于可用状态，则找出距离最近的猎物。如果距离小于给定的吃草距离，则标记草被吃，并输出被吃消息，草的状态变为不可用并重置死亡周期。
-// 输入 prey_location_message 消息，包含猎物的位置信息。
-//  输出 grass_eaten_message 消息，包含被吃草的 ID 和吃掉它的猎物的 ID。此消息是可选输出。
 FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::MessageBruteForce) {
     const float grass_x = FLAMEGPU->getVariable<float>("x");
     const float grass_y = FLAMEGPU->getVariable<float>("y");
@@ -560,8 +510,6 @@ FLAMEGPU_AGENT_FUNCTION(grass_eaten, flamegpu::MessageBruteForce, flamegpu::Mess
     草匹配猎物（食草）的信息，如果匹配，则猎物增加生命，如果不匹配，则减少生命。需要的输入变量为草输出的猎物的匹配信息，无输出信息。
 """
 prey_eat_or_starve = r"""
-// 猎物根据接收到的草被吃消息，如果匹配到自己吃掉了草，则增加生命值，否则生命值保持不变。如果生命值低于1，则死亡。
-// 输入 grass_eaten_message 消息，包含被吃草的 ID 和吃掉它的猎物的 ID。
 FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageBruteForce, flamegpu::MessageNone) {
     int isDead = 0;
     const flamegpu::id_t id = FLAMEGPU->getID();
@@ -588,7 +536,6 @@ FLAMEGPU_AGENT_FUNCTION(prey_eat_or_starve, flamegpu::MessageBruteForce, flamegp
     草繁殖。无需信息输入输出。
 """
 grass_growth = r"""
-// 猎草根据其死亡周期进行生长。如果死亡周期达到设定的周期数，草将重新变为可用状态并重置死亡周期。
 FLAMEGPU_AGENT_FUNCTION(grass_growth, flamegpu::MessageNone, flamegpu::MessageNone) {
     const int dead_cycles = FLAMEGPU->getVariable<int>("dead_cycles");
     int new_dead_cycles = dead_cycles + 1;
