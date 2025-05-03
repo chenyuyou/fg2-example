@@ -229,6 +229,7 @@ def define_runs(model):
     return runs
 
 def define_logs(model):
+    # StepLoggingConfig 是 FLAME GPU 中用于配置按步记录（即每个模拟步骤结束后记录）的对象。它需要传入 model 对象，这样它就知道要配置哪个模型的日志记录。
     log = pyflamegpu.StepLoggingConfig(model)
     log.setFrequency(1)
 #    log.logEnvironment("REPRODUCE_PREY_PROB")
@@ -243,18 +244,21 @@ def define_logs(model):
 #    log.logEnvironment("GAIN_FROM_FOOD_PREY")
 #    log.logEnvironment("GAIN_FROM_FOOD_PREDATOR")
 #    log.logEnvironment("GRASS_REGROW_CYCLES")
-    log.agent("prey").logCount()
-    log.agent("predator").logCount()
-    log.agent("grass").logCount()
+    log.agent("prey").logCount()    # 记录名为 "prey" 的智能体在每个日志记录步骤中的数量
+    log.agent("predator").logCount()    # 记录名为 "predator" 的智能体在每个日志记录步骤中的数量
+    log.agent("grass").logCount()       #记录名为 "grass" 的智能体在每个日志记录步骤中的数量
     return log
 
-class initfn(pyflamegpu.HostFunction):        
+class initfn(pyflamegpu.HostFunction):
+    # 在模拟开始之前，设置智能体的初始状态。   
     def run(self, FLAMEGPU):
+        # 这是 HostFunction 类中必须实现的方法。FLAME GPU 框架会在模拟开始时自动调用这个方法。
         num_prey = FLAMEGPU.environment.getPropertyUInt("num_prey")
         num_predators = FLAMEGPU.environment.getPropertyUInt("num_predators")
         num_grass = FLAMEGPU.environment.getPropertyUInt("num_grass")
 
         prey = FLAMEGPU.agent("prey")
+        # 每次循环创建一个新的猎物代理。
         for i in range(num_prey):            
             prey.newAgent().setVariableFloat("x",  random.uniform(-1.0, 1.0))
             prey.newAgent().setVariableFloat("y",  random.uniform(-1.0, 1.0))
@@ -280,9 +284,9 @@ class initfn(pyflamegpu.HostFunction):
         for i in range(num_grass):            
             grass.newAgent().setVariableFloat("x",  random.uniform(-1.0, 1.0))
             grass.newAgent().setVariableFloat("y",  random.uniform(-1.0, 1.0))
-            grass.newAgent().setVariableInt("dead_cycles", 0)
-            grass.newAgent().setVariableInt("available", 1)
-            grass.newAgent().setVariableFloat("type", 2.0)
+            grass.newAgent().setVariableInt("dead_cycles", 0)   # 设置草地代理的 "dead_cycles" 变量为 0。这可能用于跟踪草地死亡后的恢复周期
+            grass.newAgent().setVariableInt("available", 1)     # 设置草地代理的 "available" 变量为 1。这可能表示草地初始时是可用的（可以被吃
+            grass.newAgent().setVariableFloat("type", 2.0)  #   设置草地代理的类型变量为 2.0。
 
 
 
@@ -292,16 +296,17 @@ def initialise_simulation(seed):
     define_agents(model)
     define_environment(model)
     define_execution_order(model)
-    runs = define_runs(model)
-    logs = define_logs(model)
-    cudaSimulation = pyflamegpu.CUDASimulation(model)
-    cudaSimulation.setStepLog(logs)
-    cudaSimulation.simulate(runs)
+    runs = define_runs(model) # 对象定义了模拟的运行计划，例如模拟的总步数、使用的随机种子等。
+    logs = define_logs(model)   # 对象配置了在模拟过程中要记录的数据，例如智能体的数量
+    cudaSimulation = pyflamegpu.CUDASimulation(model) #  CUDASimulation 意味着模拟将在 CUDA 平台上进行硬件加速，从而提高模拟效率
+    cudaSimulation.setStepLog(logs)     # 模拟器在运行过程中按照 logs 中指定的配置进行日志记录。
+    cudaSimulation.simulate(runs)       #  cudaSimulation 对象上调用 simulate 方法，并传入之前创建的 RunPlan 对象 (runs)。模拟器将按照 runs 中定义的计划（例如，运行指定的步数，使用指定的随机种子）在 GPU 上执行模拟。
+    # 指定导出日志文件的名称和格式
     cudaSimulation.exportLog("log.json",True,False,False,False,False)
 
 if __name__ == "__main__":
     start=time.time()
-    initialise_simulation(64)
+    initialise_simulation(random.randint(0, 100000))
     end=time.time()
     print(end-start)
     exit()
