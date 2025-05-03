@@ -23,7 +23,7 @@ def define_environment(model):
 
     # Predator/Prey/Grass interaction
     env.newPropertyFloat("PRED_PREY_INTERACTION_RADIUS", 0.3)
-    env.newPropertyFloat("PRED_SPEED_ADVANTAGE", 3.0)
+    env.newPropertyFloat("PRED_SPEED_ADVANTAGE", 1.0)
     env.newPropertyFloat("PRED_KILL_DISTANCE", 0.05)
     env.newPropertyFloat("GRASS_EAT_DISTANCE", 0.02)
     env.newPropertyUInt("GAIN_FROM_FOOD_PREY", 80)
@@ -289,7 +289,41 @@ def initialise_simulation(num_prey, num_predators, num_grass, seed):
     if seed is not None:
         cudaSimulation.SimulationConfig().random_seed = seed
         cudaSimulation.applyConfig()
-    
+
+    # --- Visualisation Setup (移植自 model.py) ---
+    if pyflamegpu.VISUALISATION:
+        m_vis = cudaSimulation.getVisualisation()
+        min_pos = env.getPropertyFloat("MIN_POSITION")
+        max_pos = env.getPropertyFloat("MAX_POSITION")
+        bounds_width = env.getPropertyFloat("BOUNDS_WIDTH")
+        center = min_pos + bounds_width / 2.0
+        m_vis.setInitialCameraTarget(center, center, 0)
+        m_vis.setInitialCameraLocation(center, center, bounds_width * 2) # Adjust initial camera distance
+        m_vis.setCameraSpeed(0.01)
+        m_vis.setSimulationSpeed(50)
+        # Add agent visualisations for each type
+        predator_agt_vis = m_vis.addAgent("predator")
+        predator_agt_vis.setModel(pyflamegpu.ICOSPHERE)
+        predator_agt_vis.setModelScale(0.05) # Adjust size
+        predator_agt_vis.setColor(pyflamegpu.RED) # Red
+        prey_agt_vis = m_vis.addAgent("prey")
+        prey_agt_vis.setModel(pyflamegpu.ICOSPHERE)
+        prey_agt_vis.setModelScale(0.03) # Adjust size
+        prey_agt_vis.setColor(pyflamegpu.BLUE) # Blue
+        grass_agt_vis = m_vis.addAgent("grass")
+        grass_agt_vis.setModel(pyflamegpu.CUBE) # Use a different shape for grass
+        grass_agt_vis.setModelScale(0.02) # Adjust size
+        grass_agt_vis.setColor(pyflamegpu.GREEN) # Green
+        # Mark environment bounds
+        pen = m_vis.newPolylineSketch(1, 1, 1, 0.5) # White, semi-transparent
+        pen.addVertex(min_pos, min_pos, 0)
+        pen.addVertex(min_pos, max_pos, 0)
+        pen.addVertex(max_pos, max_pos, 0)
+        pen.addVertex(max_pos, min_pos, 0)
+        pen.addVertex(min_pos, min_pos, 0)
+        m_vis.activate()
+    # --- End Visualisation Setup ---
+
     """
       Initialise Model
     """
@@ -323,7 +357,7 @@ def initialise_simulation(num_prey, num_predators, num_grass, seed):
             predator.setVariableFloat("steer_x", 0.0)
             predator.setVariableFloat("steer_y", 0.0)
             predator.setVariableFloat("type", 0.0)
-            predator.setVariableInt("life", random.randint(0, 5))
+            predator.setVariableInt("life", random.randint(0, 50))
 
         grassPopulation = pyflamegpu.AgentVector(model.Agent("grass"), num_grass)
         for i in range(0, num_grass):
@@ -345,8 +379,8 @@ def run_simulation():
       Execution
     """
     # Initialise the simulation
-    [cudaSimulation, pop_tracker] = initialise_simulation(num_prey = 200, num_predators = 50, num_grass = 0, seed = 64)
-    cudaSimulation.SimulationConfig().steps = 160
+    [cudaSimulation, pop_tracker] = initialise_simulation(num_prey = 500, num_predators = 250, num_grass = 1000, seed = 64)
+    cudaSimulation.SimulationConfig().steps = 200
 
     # Run the simulation
     pop_tracker.reset()
